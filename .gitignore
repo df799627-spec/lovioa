@@ -1,0 +1,66 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+server/.env
+server/.env.*
+!server/.env.example
+
+# Runtime databases and backups
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.bak
+*.bak.*
+server/data/
+data/
+
+# User uploads and generated media
+server/uploads/
+public/test-generated/
+
+# Browser/test artifacts
+.playwright-cli/
+output/playwright/
+
+# Local payment page snapshots
+creem_ess.html
+
+# Private project notes and research
+*.md
+!README.md
+!SECURITY.md
+!public/assets/hero/README.md
+
+# Private operational scripts
+scripts/*
+!scripts/generate_beauty_dataset.py
+
+# Local deployment hooks
+.githooks/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

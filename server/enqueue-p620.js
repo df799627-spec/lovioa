@@ -1,0 +1,57 @@
+#!/usr/bin/env node
+import Database from 'better-sqlite3';
+import { join } from 'path';
+import { randomUUID } from 'crypto';
+
+const __dirname = '.';
+const DB_FILE = join(__dirname, 'data/lovioa.db');
+const db = new Database(DB_FILE);
+
+const prompts = [
+  { id: 'p601', prompt: 'Portrait: a master origami artist in Tokyo folding a complex Kawasaki rose from a single square of paper, no cuts, no glue, the geometric precision visible in the layers, the petals beginning to emerge from the flat sheet. Shot on Leica SL2, 85mm f/1.4. The art of transforming a flat square into a three-dimensional flower. Mathematics made in paper. One sheet becoming one flower. The most patient art form from the most precise of cultures.' },
+  { id: 'p602', prompt: 'Abstract: a time-lapse photograph of a flower opening over twelve hours, multiple exposures composited into a single image showing the sequence of opening from bud to full bloom, each stage a different saturation of color. Shot on Hasselblad X2D, macro lens. The most watched event in nature. A flower opening as the daily demonstration of phototropism. The geometry of petals unfolding in a sequence of mathematical curves. Time compressed into a single still image.' },
+  { id: 'p603', prompt: 'Landscape: a glacial lake in Patagonia at the golden hour, the turquoise water fed by a receding glacier, icebergs the size of houses floating in the shallows, the Andes mountains behind them. Shot on Phase One IQ4, 85mm. The fastest-changing landscape on Earth. Glaciers that have been retreating since the Industrial Revolution. Icebergs that calved from ice that fell as snow before the 20th century. The most dramatic evidence of a warming planet, beautiful in its dying.' },
+  { id: 'p604', prompt: 'Portrait: a female marine biologist in a submersible at 200 meters depth observing a giant squid for the first time in its natural habitat, the bioluminescence from the creature illuminating the darkness, the sub lights creating a tunnel of visibility. Shot on Sony A7S III, 16mm. The most elusive giant animal on Earth, filmed alive in the deep ocean for the first time. A creature that inspired myths and nightmares for centuries before anyone saw it alive. Science as the end of mystery.' },
+  { id: 'p605', prompt: 'Portrait: a master blacksmith in a forge in Kyoto reshaping a katana blade with traditional techniques, the fire glowing at the forge, the hammer ringing on the anvil, sparks flying in a dark workshop. Shot on Leica Q3, 28mm Summilux. The sword that made Japanese steel legendary. Folding the steel ten thousand times to remove impurities. The craft that produced the sharpest blades in history. A sword as the ultimate expression of metallurgy and patience.' },
+  { id: 'p606', prompt: 'Street: a family sleeping on the pavement outside a government office in Delhi, their belongings in bundles beside them, the first light of dawn making them visible, office workers stepping around them on the sidewalk. Shot on Leica M11, 35mm Summilux. The city invisible population made visible by daybreak. Millions of people waiting outside government offices for the documents that might change their lives. The pavement as the most democratic of shelters.' },
+  { id: 'p607', prompt: 'Abstract: a photograph of magnetorheological fluid between two magnets, the spikes of iron particles standing vertical in the magnetic field, the surface of the liquid covered in geometric peaks that form and reform as the magnetic field changes. Shot on Canon R5 with macro, high-speed sync flash. The liquid that becomes solid in a magnetic field. Iron particles aligning instantly when a magnet is introduced. A substance that exists between states. Physics visible in the shape of standing spikes.' },
+  { id: 'p608', prompt: 'Editorial: a fashion editorial shot inside a decommissioned submarine in Portsmouth, the tight corridors and control panels creating a claustrophobic backdrop, models in rubberized garments that echo the submarine functional aesthetic. Shot on Phase One IQ4, 45mm f/2.8. Fashion in the most enclosed space on Earth. A vessel designed to destroy, repurposed as a runway. The submarine interior as a comment on fashion relationship with danger and survival. Metal, rubber, and human presence.' },
+  { id: 'p609', prompt: 'Portrait: a master bookbinder in Florence restoring an illuminated medieval manuscript, the gold leaf application visible, the centuries-old vellum under the lamp, the exact tools used for eight hundred years laid out on the workbench. Shot on Leica SL2, 50mm APO. The craft that kept the knowledge of antiquity alive through the Dark Ages. Illuminating manuscripts as the art of preserving civilization. Gold leaf on vellum. The most beautiful books ever made, still being made one page at a time.' },
+  { id: 'p610', prompt: 'Landscape: an ice cave in Vatnajokull glacier in Iceland during the blue hour, the ice glowing with internal blue light, the ceiling of compressed ice hundreds of years old, the silence of a space carved by ice not water. Shot on Phase One IQ4, 24mm f/8. The blue that is the color of ancient ice. Glacial ice so dense it absorbs all colors except blue. A cave that did not exist five years ago and will be gone in five more. The glacier as the most temporary of landscapes.' },
+  { id: 'p611', prompt: 'Portrait: a female bioinformatician in a sequencing laboratory analyzing genomic data from cancer cells, the DNA sequence on multiple screens beside her, the fluorescent dyes marking the bases of the sequence. Shot on Canon R5, 35mm f/1.4. Reading the code of life at the scale of a billion base pairs. Finding the mutations that cause cancer by comparing tumor genomes to healthy tissue. The computational biology revolution that is making cancer a survivable disease. The most important data analysis in medicine.' },
+  { id: 'p612', prompt: 'Abstract: a photograph of a ferrofluid being manipulated by an electromagnet, the spikes of the fluid reaching toward the magnet in real time, the surface constantly reshaping itself in response to changes in magnetic field strength. Shot on Canon R5 with macro, 1/1000s. The most responsive liquid in the world. A substance that reacts to invisible forces with dramatic physical form. The exact geometry of a magnetic field made visible. Science most photogenic experiment.' },
+  { id: 'p613', prompt: 'Portrait: a master Persian carpet weaver in Isfahan sitting at a traditional loom, the silk thread being knotted one row at a time, the pattern of a garden scene emerging from the flat surface, months of work visible in a single square meter. Shot on Leica Q3, 28mm Summilux. The carpet that took two years to make. Each knot tied by hand, a thousand knots per square foot. The garden of paradise translated into silk and wool. A room-sized artwork created one knot at a time.' },
+  { id: 'p614', prompt: 'Street: a fish market in Tokyo Tsukiji Outer Market at 5am, the auction long finished, the vendors hosing down the concrete floors, the last of the morning customers picking through the remaining fish, the street lamps still on. Shot on Fujifilm X100VI, 23mm f/2. The market that feeds a city of 37 million people. The precise machinery of seafood distribution beginning each day before dawn. The end of one shift, the start of another.' },
+  { id: 'p615', prompt: 'Abstract: a long-exposure photograph of a spiral galaxy being distorted by the gravitational lens of a massive galaxy cluster in the foreground, the galaxy light stretched into arcs by the curvature of space itself. Composite image from Hubble and ground-based telescope data. The universe most powerful telescope — mass — bending light from distant galaxies. A galaxy seen distorted into perfect arcs by the fabric of spacetime. The most distant objects made visible by cosmic magnification.' },
+  { id: 'p616', prompt: 'Fashion: a fashion editorial shot in a derelict Japanese department store in Osaka that never opened, the escalators stopped mid-flight, the mannequins still in their places, the models wearing garments made from salvaged fabric from the store abandoned inventory. Shot on Phase One IQ4, 85mm f/2. The ghost of Japan lost decade as a fashion statement. The department store that was never used, now used for everything. Fashion as archaeology of the unused. The retail dream decayed into something more interesting.' },
+  { id: 'p617', prompt: 'Portrait: a master katana sharpener in Sakai city using a wooden stick and water to hone the blade to a razor edge, the blade reflecting the workshop light in a single sharp line, the wooden stick worn thin from use. Shot on Leica M11, 85mm f/1.4. The final process that makes a katana lethal. The razor edge that can cut through a falling silk scarf. The geometry of a perfect blade edge, measured in molecules. A craft that takes years to learn and a lifetime to master.' },
+  { id: 'p618', prompt: 'Landscape: a sandstorm approaching a desert city in the Middle East, the wall of sand hundreds of meters high moving across the landscape, the city skyline visible behind the advancing wall, the last moments before impact. Shot on Phase One IQ4, 200mm. The most dramatic weather event in the most dramatic landscape. Sand that was once part of a seabed, now suspended in air. The city response to a force of nature that has been happening for millennia. Climate made visible.' },
+  { id: 'p619', prompt: 'Portrait: a female glaciologist on a research station on Greenland ice sheet measuring a melt pond, the meltwater lake surface perfectly still, reflecting the overcast sky, her instruments recording the depth and temperature. Shot on Canon R5, 50mm f/1.2. The fastest-changing landscape on Earth. Melt ponds that form each summer and drain through to the bedrock in hours. The most visible evidence of ice sheet collapse. Science measuring what civilization has set in motion.' },
+  { id: 'p620', prompt: 'Portrait: a master Japanese lacquer bowl maker in Kyoto applying the final coat of kintsugi lacquer to a repaired tea bowl, the gold dust being mixed into the lacquer, the repair lines glowing gold against the black glaze. Shot on Leica Q3, 28mm Summilux. The philosophy of kintsugi — that breakage and repair are part of an object history rather than something to hide. Wabi-sabi as the most profound aesthetic principle. A broken bowl more beautiful after it is repaired than when it was whole. The most philosophical of crafts.' },
+];
+
+const insert = db.prepare(`
+  INSERT INTO gen_jobs
+    (id, user_id, mode, model, size, quality, prompt, negative_prompt, reference_image_url, status, attempt_count, max_attempts, queued_at, created_at, updated_at)
+  VALUES (?, NULL, 'text', 'gpt-image-2', '1024x1024', 'medium', ?, '', NULL, 'queued', 0, 5, ?, ?, ?)
+`);
+
+const now = new Date().toISOString();
+let added = 0;
+for (const p of prompts) {
+  const id = randomUUID();
+  try {
+    insert.run(id, p.prompt, now, now, now);
+    added++;
+    console.log('  + ' + p.id);
+  } catch(e) {
+    console.log('  x ' + p.id + ': ' + e.message.slice(0, 50));
+  }
+}
+console.log('\nAdded:', added, '/', prompts.length);
+
+const r = db.prepare("SELECT status, COUNT(*) as c FROM gen_jobs GROUP BY status ORDER BY status").all();
+r.forEach(x => console.log('  ' + x.status + ': ' + x.c));
+const total = db.prepare("SELECT COUNT(*) as c FROM gen_jobs").get();
+console.log('  Total:', total.c);
+db.close();

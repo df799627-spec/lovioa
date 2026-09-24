@@ -1,0 +1,664 @@
+/* ── Page & Background ─────────────────────────────────── */
+.onboarding-page {
+  min-height: calc(100vh - var(--nav-height));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8) var(--space-4);
+  padding-top: calc(var(--nav-height) + var(--space-8));
+  position: relative;
+  overflow: hidden;
+}
+
+/* Decorative ambient orbs */
+.onboarding-page::before,
+.onboarding-page::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(80px);
+  opacity: 0.4;
+}
+.onboarding-page::before {
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(181, 98, 42, 0.18) 0%, transparent 70%);
+  top: -80px;
+  right: -80px;
+}
+.onboarding-page::after {
+  width: 350px;
+  height: 350px;
+  background: radial-gradient(circle, rgba(181, 98, 42, 0.12) 0%, transparent 70%);
+  bottom: -60px;
+  left: -60px;
+}
+
+/* ── Card ─────────────────────────────────────────────── */
+.onboarding-card {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  background: var(--color-surface);
+  border: 1px solid rgba(181, 98, 42, 0.12);
+  border-radius: 28px;
+  padding: 48px 52px 44px;
+  box-shadow:
+    0 2px 4px rgba(28, 25, 23, 0.02),
+    0 8px 24px rgba(28, 25, 23, 0.06),
+    0 24px 60px rgba(28, 25, 23, 0.08);
+  backdrop-filter: blur(20px);
+  overflow: hidden;
+}
+
+/* Decorative top accent line */
+.onboarding-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 24px;
+  right: 24px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(181, 98, 42, 0.4) 30%,
+    rgba(181, 98, 42, 0.6) 50%,
+    rgba(181, 98, 42, 0.4) 70%,
+    transparent 100%
+  );
+}
+
+/* ── Header ───────────────────────────────────────────── */
+.onboarding-card__header {
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.onboarding-card__icon-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.onboarding-card__eyebrow-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(181, 98, 42, 0.15) 0%, rgba(181, 98, 42, 0.08) 100%);
+  border: 1px solid rgba(181, 98, 42, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.onboarding-card__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-accent);
+  margin-bottom: 0;
+}
+
+.onboarding-card__title {
+  font-family: var(--font-display);
+  font-size: 2.1rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 10px;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.onboarding-card__subtitle {
+  font-size: 0.9rem;
+  color: var(--color-secondary);
+  line-height: 1.6;
+  max-width: 380px;
+  margin: 0 auto;
+}
+
+/* ── Step Indicator (pills style) ────────────────────── */
+.onboarding-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(100%, 430px);
+  margin-inline: auto;
+  margin-bottom: 36px;
+}
+
+.onboarding-step {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: default;
+  position: relative;
+  min-width: 0;
+}
+
+.onboarding-step__dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  z-index: 1;
+}
+
+.onboarding-step.inactive .onboarding-step__dot {
+  background: var(--color-bg);
+  border: 1.5px solid var(--color-border);
+  color: var(--color-secondary);
+}
+
+.onboarding-step.active .onboarding-step__dot {
+  background: var(--color-accent);
+  border: 1.5px solid var(--color-accent);
+  color: white;
+  box-shadow: 0 0 0 6px var(--color-accent-glow), 0 2px 8px rgba(181, 98, 42, 0.3);
+  transform: scale(1.08);
+}
+
+.onboarding-step.done .onboarding-step__dot {
+  background: var(--color-accent-soft);
+  border: 1.5px solid rgba(181, 98, 42, 0.3);
+  color: var(--color-accent);
+}
+
+.onboarding-step__label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.onboarding-step.inactive .onboarding-step__label {
+  color: var(--color-secondary);
+  opacity: 0.6;
+}
+
+.onboarding-step.active .onboarding-step__label {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.onboarding-step.done .onboarding-step__label {
+  color: var(--color-secondary);
+  opacity: 0.7;
+}
+
+/* Connector line between dots */
+.onboarding-step + .onboarding-step::before {
+  content: '';
+  display: block;
+  position: absolute;
+  top: 15px;
+  right: 50%;
+  width: 100%;
+  height: 2px;
+  background: var(--color-border);
+  flex-shrink: 0;
+  margin: 0;
+  transition: background 0.3s;
+  z-index: 0;
+}
+
+.onboarding-step.done + .onboarding-step::before,
+.onboarding-step.active + .onboarding-step::before {
+  background: var(--color-accent-soft);
+}
+
+/* ── Body ──────────────────────────────────────────────── */
+.onboarding-card__body {
+  min-height: 240px;
+  position: relative;
+  margin-bottom: 8px;
+}
+
+.onboarding-step-content__heading {
+  margin-bottom: 20px;
+}
+
+.onboarding-step-content__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-accent);
+  margin-bottom: 8px;
+}
+
+.onboarding-step-content__label-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  opacity: 0.6;
+}
+
+.onboarding-step-content__title {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--color-text);
+  line-height: 1.25;
+  margin-bottom: 20px;
+}
+
+/* ── Chips (multi-select) ─────────────────────────────── */
+.onboarding-chips {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.onboarding-chip {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  min-height: 48px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1.5px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    border-color 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background 0.2s,
+    color 0.2s,
+    box-shadow 0.2s,
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  outline: none;
+  text-align: left;
+}
+
+.onboarding-chip::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 14px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  box-shadow: 0 0 0 3px var(--color-accent-glow);
+}
+
+.onboarding-chip:hover {
+  border-color: rgba(181, 98, 42, 0.45);
+  color: var(--color-text);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(28, 25, 23, 0.08);
+}
+
+.onboarding-chip.selected {
+  border-color: var(--color-accent);
+  background: linear-gradient(135deg, rgba(181, 98, 42, 0.1) 0%, rgba(181, 98, 42, 0.06) 100%);
+  color: var(--color-accent);
+  font-weight: 600;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(181, 98, 42, 0.18);
+}
+
+.onboarding-chip.selected::after {
+  opacity: 1;
+}
+
+.onboarding-chip.selected:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(181, 98, 42, 0.22);
+}
+
+.onboarding-chip__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  min-width: 22px;
+  font-size: 1rem;
+  line-height: 1;
+  transition: transform 0.2s;
+}
+
+.onboarding-chip:hover .onboarding-chip__icon {
+  transform: scale(1.15);
+}
+
+/* Checkmark overlay for selected chips */
+.onboarding-chip.selected .onboarding-chip__check {
+  display: flex;
+}
+
+.onboarding-chip__check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: #fff;
+}
+
+/* ── Role Cards (single-select) ────────────────────────── */
+.onboarding-role-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.onboarding-role-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 10px 14px;
+  border-radius: 16px;
+  border: 1.5px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-secondary);
+  cursor: pointer;
+  transition:
+    border-color 0.22s,
+    background 0.22s,
+    color 0.22s,
+    box-shadow 0.22s,
+    transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  text-align: center;
+  outline: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.onboarding-role-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+
+.onboarding-role-card:hover {
+  border-color: rgba(181, 98, 42, 0.4);
+  color: var(--color-text);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(28, 25, 23, 0.10);
+}
+
+.onboarding-role-card:hover::before {
+  opacity: 0.5;
+}
+
+.onboarding-role-card.selected {
+  border-color: var(--color-accent);
+  background: linear-gradient(
+    180deg,
+    rgba(181, 98, 42, 0.08) 0%,
+    rgba(181, 98, 42, 0.03) 100%
+  );
+  color: var(--color-accent);
+  transform: translateY(-3px);
+  box-shadow:
+    0 6px 20px rgba(181, 98, 42, 0.16),
+    0 0 0 1px rgba(181, 98, 42, 0.08) inset;
+}
+
+.onboarding-role-card.selected::before {
+  opacity: 1;
+}
+
+.onboarding-role-card__icon-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.22s,
+    border-color 0.22s,
+    transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.onboarding-role-card:hover .onboarding-role-card__icon-wrap {
+  transform: scale(1.1) rotate(-3deg);
+  border-color: rgba(181, 98, 42, 0.3);
+}
+
+.onboarding-role-card.selected .onboarding-role-card__icon-wrap {
+  background: var(--color-accent-soft);
+  border-color: rgba(181, 98, 42, 0.3);
+  transform: scale(1.12);
+}
+
+.onboarding-role-card__icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.onboarding-role-card__label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.3;
+  color: inherit;
+}
+
+/* ── Skip hint ─────────────────────────────────────────── */
+.onboarding-card__skip-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  color: var(--color-secondary);
+  margin-bottom: 28px;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.onboarding-card__skip-hint:hover {
+  opacity: 0.85;
+}
+
+.onboarding-card__skip-hint svg {
+  flex-shrink: 0;
+}
+
+/* ── Actions ───────────────────────────────────────────── */
+.onboarding-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.onboarding-card__actions-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.onboarding-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 11px 24px;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition:
+    background 0.18s,
+    color 0.18s,
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.2s,
+    opacity 0.2s;
+  white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+}
+
+.onboarding-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* Primary button with gradient */
+.onboarding-btn--primary {
+  background: linear-gradient(135deg, var(--color-accent) 0%, #c9723a 100%);
+  color: white;
+  box-shadow:
+    0 2px 8px rgba(181, 98, 42, 0.28),
+    0 1px 2px rgba(181, 98, 42, 0.15);
+}
+
+.onboarding-btn--primary::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 50%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.12) 0%, transparent 100%);
+  border-radius: 12px 12px 0 0;
+  pointer-events: none;
+}
+
+.onboarding-btn--primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--color-accent-hover) 0%, #b5622a 100%);
+  transform: translateY(-2px);
+  box-shadow:
+    0 6px 20px rgba(181, 98, 42, 0.38),
+    0 2px 4px rgba(181, 98, 42, 0.2);
+}
+
+.onboarding-btn--primary:hover:not(:disabled)::before {
+  background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, transparent 100%);
+}
+
+.onboarding-btn--primary:active:not(:disabled) {
+  transform: scale(0.97) translateY(0);
+  box-shadow: 0 2px 6px rgba(181, 98, 42, 0.2);
+}
+
+.onboarding-btn--ghost {
+  background: transparent;
+  color: var(--color-secondary);
+  border: 1.5px solid var(--color-border);
+}
+
+.onboarding-btn--ghost:hover:not(:disabled) {
+  background: var(--color-bg);
+  color: var(--color-text);
+  border-color: rgba(181, 98, 42, 0.3);
+  transform: translateY(-1px);
+}
+
+.onboarding-btn--ghost:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.onboarding-btn--text {
+  background: transparent;
+  color: var(--color-secondary);
+  border: none;
+  font-weight: 500;
+  padding: 10px 14px;
+}
+
+.onboarding-btn--text:hover:not(:disabled) {
+  color: var(--color-accent);
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+
+/* Spinner */
+.onboarding-btn__spinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(255,255,255,0.25);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Mobile ────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .onboarding-page {
+    align-items: flex-start;
+    padding: calc(var(--nav-height) + var(--space-5)) var(--space-4) var(--space-8);
+  }
+
+  .onboarding-page::before,
+  .onboarding-page::after {
+    opacity: 0.2;
+  }
+
+  .onboarding-card {
+    padding: 28px 22px 24px;
+    border-radius: 22px;
+  }
+
+  .onboarding-card__title {
+    font-size: 1.65rem;
+  }
+
+  .onboarding-role-cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .onboarding-step__label {
+    display: none;
+  }
+
+  .onboarding-chips {
+    grid-template-columns: 1fr;
+  }
+
+  .onboarding-btn {
+    padding: 10px 18px;
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .onboarding-role-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

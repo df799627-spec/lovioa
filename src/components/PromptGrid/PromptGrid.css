@@ -1,0 +1,85 @@
+/* ════════════════════════════════════════════════════════
+   PROMPT GRID — Compact commercial showcase
+   ════════════════════════════════════════════════════════ */
+
+.prompt-grid {
+  column-count: 4;
+  column-gap: 8px;
+}
+
+.prompt-grid > * {
+  width: 100%;
+  margin: 0 0 8px;
+  break-inside: avoid;
+}
+
+.prompt-grid__featured-label {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 3px 7px;
+  background: rgba(28, 25, 23, 0.72);
+  color: #fff;
+  font-size: 0.58rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 5px;
+  backdrop-filter: blur(8px);
+  z-index: 4;
+}
+
+/* Empty state */
+.prompt-grid-empty {
+  column-span: all;
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 24px;
+  text-align: center;
+}
+
+.prompt-grid-empty__icon {
+  margin-bottom: 24px;
+  opacity: 0.3;
+}
+
+.prompt-grid-empty__title {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--color-text);
+  margin-bottom: 10px;
+}
+
+.prompt-grid-empty__text {
+  font-size: 0.88rem;
+  color: var(--color-secondary);
+  max-width: 300px;
+  font-weight: 300;
+  line-height: 1.7;
+}
+
+/* ── Responsive breakpoints ─────────────────────────────── */
+
+@media (max-width: 1024px) {
+  .prompt-grid {
+    column-count: 3;
+  }
+}
+
+@media (max-width: 640px) {
+  .prompt-grid {
+    column-count: 2;
+    column-gap: 6px;
+  }
+}
+
+@media (max-width: 375px) {
+  .prompt-grid {
+    column-count: 1;
+  }
+}

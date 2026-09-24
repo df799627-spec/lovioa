@@ -1,0 +1,445 @@
+.subscribe-page {
+  min-height: calc(100vh - var(--nav-height));
+  display: flex;
+  align-items: center;
+  padding: var(--space-10) var(--space-6);
+  padding-top: calc(var(--nav-height) + var(--space-10));
+}
+
+.subscribe-page__inner {
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.subscribe-page__header {
+  text-align: center;
+  margin-bottom: var(--space-10);
+}
+
+.subscribe-page__eyebrow {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-accent);
+  background: var(--color-accent-bg);
+  padding: 4px 12px;
+  border-radius: 20px;
+  margin-bottom: var(--space-4);
+}
+
+.subscribe-page__title {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: var(--space-3);
+}
+
+.subscribe-page__subtitle {
+  font-size: 1.05rem;
+  color: var(--color-secondary);
+}
+
+/* ── Cycle toggle ────────────────────────────────────── */
+.subscribe-page__cycle-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: 50px;
+  padding: 4px;
+  margin-bottom: var(--space-8);
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.subscribe-page__cycle-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 10px 24px;
+  border-radius: 50px;
+  border: none;
+  background: transparent;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--color-secondary);
+  transition: background 0.15s, color 0.15s;
+}
+
+.subscribe-page__cycle-btn.active {
+  background: var(--color-accent);
+  color: white;
+}
+
+.subscribe-page__cycle-btn:not(.active):hover {
+  color: var(--color-text);
+}
+
+.subscribe-page__cycle-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(181, 98, 42, 0.15);
+  color: var(--color-accent);
+  padding: 2px 8px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.subscribe-page__cycle-btn.active .subscribe-page__cycle-badge {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+/* ── Plans ─────────────────────────────────────────── */
+.subscribe-page__plans {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-5);
+  margin-bottom: var(--space-8);
+}
+
+@media (max-width: 800px) {
+  .subscribe-page__plans {
+    grid-template-columns: 1fr;
+  }
+}
+
+.subscribe-card {
+  position: relative;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  padding: 32px 28px 28px;
+  cursor: pointer;
+  /* Layered inner shadow for depth */
+  box-shadow:
+    0 1px 3px rgba(28, 25, 23, 0.04),
+    0 4px 12px rgba(28, 25, 23, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transition:
+    border-color 0.25s var(--transition-base),
+    box-shadow 0.25s var(--transition-base),
+    transform 0.3s var(--transition-spring);
+  /* Ensure border stays well clear of content */
+  overflow: visible;
+}
+
+.subscribe-card:hover {
+  border-color: color-mix(in srgb, var(--color-accent) 50%, var(--color-border));
+  box-shadow:
+    0 8px 32px rgba(28, 25, 23, 0.10),
+    0 2px 8px rgba(28, 25, 23, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transform: translateY(-4px);
+}
+
+.subscribe-card--selected {
+  border-color: var(--color-accent);
+  box-shadow:
+    0 0 0 1px var(--color-accent),
+    0 0 0 4px var(--color-accent-glow),
+    0 12px 40px rgba(181, 98, 42, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.subscribe-card--selected:hover {
+  box-shadow:
+    0 0 0 1px var(--color-accent),
+    0 0 0 6px var(--color-accent-glow),
+    0 16px 48px rgba(181, 98, 42, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.subscribe-card__badge {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-hover) 100%);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 5px 14px 4px;
+  border-radius: 20px;
+  /* Subtle top light reflection */
+  box-shadow: 0 2px 8px rgba(181, 98, 42, 0.35);
+  white-space: nowrap;
+}
+
+.subscribe-card__header {
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.subscribe-card__name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-2);
+}
+
+.subscribe-card__price-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  margin-bottom: 2px;
+}
+
+.subscribe-card__currency {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.subscribe-card__amount {
+  font-size: 2.8rem;
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1;
+}
+
+.subscribe-card__period {
+  font-size: 0.85rem;
+  color: var(--color-secondary);
+  margin-left: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.subscribe-card__equiv {
+  font-size: 0.75rem;
+  color: var(--color-secondary);
+}
+
+.subscribe-card__yearly-total {
+  font-size: 0.75rem;
+  color: var(--color-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.subscribe-card__credits {
+  font-size: 0.8rem;
+  color: var(--color-accent);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  /* Subtle pill tag for credits count */
+  display: inline-block;
+  background: var(--color-accent-soft);
+  padding: 3px 10px;
+  border-radius: 20px;
+  margin-top: 4px;
+}
+
+.subscribe-card__benefits {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding-left: 2px;
+}
+
+.subscribe-card__benefit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.88rem;
+  color: var(--color-secondary);
+  line-height: 1.4;
+}
+
+.subscribe-card__benefit--highlight {
+  color: var(--color-accent);
+  font-weight: 500;
+}
+
+.subscribe-card__select-btn {
+  width: 100%;
+  padding: 11px 20px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1.5px solid color-mix(in srgb, var(--color-accent) 60%, var(--color-border));
+  background: transparent;
+  color: var(--color-accent);
+  transition:
+    background 0.2s var(--transition-fast),
+    color 0.2s var(--transition-fast),
+    border-color 0.2s var(--transition-fast),
+    box-shadow 0.2s var(--transition-fast),
+    transform 0.15s var(--transition-spring);
+}
+
+.subscribe-card__select-btn:hover {
+  background: var(--color-accent);
+  color: white;
+  border-color: var(--color-accent);
+  box-shadow: 0 4px 14px rgba(181, 98, 42, 0.30);
+  transform: translateY(-1px);
+}
+
+.subscribe-card__select-btn.active {
+  background: var(--color-accent);
+  color: white;
+  border-color: var(--color-accent);
+  box-shadow: 0 4px 14px rgba(181, 98, 42, 0.30);
+}
+
+/* ── Error ─────────────────────────────────────────── */
+.subscribe-page__error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius-md);
+  color: #dc2626;
+  font-size: 0.85rem;
+  margin-bottom: var(--space-5);
+}
+
+/* ── Action ─────────────────────────────────────────── */
+.subscribe-page__action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-10);
+}
+
+.subscribe-page__checkout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 16px 48px;
+  background: var(--color-accent);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  min-width: 240px;
+}
+
+.subscribe-page__checkout-btn:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+  transform: translateY(-1px);
+}
+
+.subscribe-page__checkout-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.subscribe-page__checkout-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.subscribe-page__spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.subscribe-page__guarantee {
+  font-size: 0.8rem;
+  color: var(--color-secondary);
+  text-align: center;
+}
+
+/* ── Features ────────────────────────────────────────── */
+.subscribe-page__features {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-6);
+  padding: var(--space-8);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+}
+
+@media (max-width: 600px) {
+  .subscribe-page__features {
+    grid-template-columns: 1fr;
+    gap: var(--space-5);
+    padding: var(--space-6);
+  }
+}
+
+.subscribe-page__feature {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.subscribe-page__feature-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  background: var(--color-accent-bg);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.subscribe-page__feature-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 4px;
+}
+
+.subscribe-page__feature-desc {
+  font-size: 0.8rem;
+  color: var(--color-secondary);
+  line-height: 1.5;
+}
+
+/* ── Mobile ─────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .subscribe-page {
+    padding: calc(var(--nav-height) + var(--space-6)) var(--space-4) var(--space-8);
+    align-items: flex-start;
+  }
+
+  .subscribe-page__title {
+    font-size: 2rem;
+  }
+
+  .subscribe-card {
+    padding: var(--space-6);
+  }
+
+  .subscribe-card__amount {
+    font-size: 2.5rem;
+  }
+}
