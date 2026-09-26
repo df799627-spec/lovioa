@@ -2305,6 +2305,7 @@ const PLANS = [
     credits: 66,
     fastCredits: 66,
     imagePrice: 0.15,
+    coverImage: '/assets/pricing/starter-cover.jpg',
     popular: false,
     features: [
       'One-time purchase, never expires',
@@ -2322,6 +2323,7 @@ const PLANS = [
     credits: 166,
     fastCredits: 166,
     imagePrice: 0.12,
+    coverImage: '/assets/pricing/standard-cover.jpg',
     popular: true,
     features: [
       'One-time purchase, never expires',
@@ -2339,6 +2341,7 @@ const PLANS = [
     credits: 990,
     fastCredits: 990,
     imagePrice: 0.1,
+    coverImage: '/assets/pricing/premium-cover.jpg',
     popular: false,
     features: [
       'One-time purchase, never expires',

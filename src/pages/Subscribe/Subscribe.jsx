@@ -5,6 +5,12 @@ import { api } from '../../services/api';
 import { BILLING_PLANS } from '../../config/billingPlans';
 import './Subscribe.css';
 
+const PLAN_COVER_IMAGES = {
+  starter: '/assets/pricing/starter-cover.jpg',
+  standard: '/assets/pricing/standard-cover.jpg',
+  premium: '/assets/pricing/premium-cover.jpg',
+};
+
 function normalizePlan(rawPlan = {}) {
   const price = Number(rawPlan.price);
   const fastCredits = Number(rawPlan.fastCredits ?? rawPlan.credits);
@@ -20,6 +26,7 @@ function normalizePlan(rawPlan = {}) {
     price: Number.isFinite(price) ? price : 0,
     fastCredits: Number.isFinite(fastCredits) ? fastCredits : 0,
     imagePrice: Number.isFinite(derivedImagePrice) ? derivedImagePrice : null,
+    coverImage: rawPlan.coverImage || PLAN_COVER_IMAGES[rawPlan.tierId] || null,
     features: Array.isArray(rawPlan.features) ? rawPlan.features : [],
   };
 }
@@ -36,7 +43,7 @@ export default function Subscribe() {
   const [selectedPlan, setSelectedPlan] = useState('standard_cny');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [plans, setPlans] = useState([]);
+  const [plans, setPlans] = useState(() => normalizePlans(BILLING_PLANS));
 
   useEffect(() => {
     let cancelled = false;
@@ -99,6 +106,18 @@ export default function Subscribe() {
             >
               {plan.popular && (
                 <div className="subscribe-card__badge">{t('subscribe.popular')}</div>
+              )}
+              {plan.coverImage && (
+                <div className="subscribe-card__cover">
+                  <img
+                    src={plan.coverImage}
+                    alt={t(`subscribe.planNames.${plan.tierId}`, { defaultValue: plan.displayName })}
+                    loading="lazy"
+                  />
+                  <div className="subscribe-card__cover-overlay">
+                    <span>{plan.fastCredits.toLocaleString()} {t('subscribe.images')}</span>
+                  </div>
+                </div>
               )}
               <div className="subscribe-card__header">
                 <div className="subscribe-card__name">
@@ -175,42 +194,6 @@ export default function Subscribe() {
           <p className="subscribe-page__guarantee">{t('subscribe.guarantee')}</p>
         </div>
 
-        <div className="subscribe-page__features">
-          <div className="subscribe-page__feature">
-            <div className="subscribe-page__feature-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M12 2L3 7v5c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z" stroke="var(--color-accent)" strokeWidth="1.5" strokeLinejoin="round"/>
-              </svg>
-            </div>
-            <div>
-              <div className="subscribe-page__feature-title">{t('subscribe.secure')}</div>
-              <div className="subscribe-page__feature-desc">{t('subscribe.secureDesc')}</div>
-            </div>
-          </div>
-          <div className="subscribe-page__feature">
-            <div className="subscribe-page__feature-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="var(--color-accent)" strokeWidth="1.5" strokeLinecap="round"/>
-                <path d="M22 4L12 14.01l-3-3" stroke="var(--color-accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-            <div>
-              <div className="subscribe-page__feature-title">{t('subscribe.cancel')}</div>
-              <div className="subscribe-page__feature-desc">{t('subscribe.cancelDesc')}</div>
-            </div>
-          </div>
-          <div className="subscribe-page__feature">
-            <div className="subscribe-page__feature-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="var(--color-accent)" strokeWidth="1.5" strokeLinejoin="round"/>
-              </svg>
-            </div>
-            <div>
-              <div className="subscribe-page__feature-title">{t('subscribe.privacy')}</div>
-              <div className="subscribe-page__feature-desc">{t('subscribe.privacyDesc')}</div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
