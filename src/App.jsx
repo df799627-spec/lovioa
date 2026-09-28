@@ -15,6 +15,7 @@ import Profile from './pages/Profile/Profile';
 import Admin from './pages/Admin/Admin';
 import Subscribe from './pages/Subscribe/Subscribe';
 import Balance from './pages/Balance/Balance';
+import Redeem from './pages/Redeem/Redeem';
 import Legal from './pages/Legal/Legal';
 import Team from './pages/Team/Team';
 import AcceptableUse from './pages/AcceptableUse/AcceptableUse';
@@ -65,6 +66,7 @@ function AppShell() {
         <Route path="/admin/*" element={<Admin />} />
         <Route path="/subscribe" element={<Subscribe />} />
         <Route path="/balance" element={<Balance />} />
+        <Route path="/redeem" element={<RequireAuth><Redeem /></RequireAuth>} />
         <Route path="/team" element={<Team />} />
         <Route path="/pricing" element={<Navigate to="/subscribe" replace />} />
         <Route path="/terms" element={<Legal />} />

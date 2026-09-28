@@ -5,6 +5,11 @@ import {
   enqueueGenJob,
   db,
 } from '../db/promptsRepo.js';
+import {
+  buildCategoryGenerationBrief,
+  composeCategoryPrompt,
+  normalizeGenerationCategory,
+} from './categoryPromptBlueprints.js';
 
 const DEFAULT_DEEPSEEK_BASE_URL = 'https://api.deepseek.com/v1';
 const DEFAULT_DEEPSEEK_MODEL = 'deepseek-chat';
@@ -179,83 +184,85 @@ async function generatePromptsWithDeepSeek({
   if (!apiKey) throw new Error('Heartbeat deepseek api key missing');
   const normalizedCount = Math.max(1, Number(count || 12));
   const cats = (Array.isArray(categories) ? categories : []).filter(Boolean);
-  const categoryHint = cats.length ? cats.join(', ') : DEFAULT_CATEGORY_POOL.slice(0, 6).join(', ');
   const normalizedPlan = Array.isArray(categoryPlan) ? categoryPlan.map((x) => String(x || '').trim()).filter(Boolean) : [];
+  const plan = normalizedPlan.length > 0
+    ? normalizedPlan.slice(0, normalizedCount)
+    : Array.from({ length: normalizedCount }, (_, index) => cats[index % (cats.length || DEFAULT_CATEGORY_POOL.length)] || DEFAULT_CATEGORY_POOL[index % DEFAULT_CATEGORY_POOL.length]);
   const quotaMap = new Map();
-  for (const cat of normalizedPlan) {
-    quotaMap.set(cat, (quotaMap.get(cat) || 0) + 1);
-  }
-  const quotaLines = [...quotaMap.entries()]
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .map(([cat, n]) => `- ${cat}: ${n}`)
-    .join('\n');
-  const allowedCategories = cats.length ? cats : DEFAULT_CATEGORY_POOL;
-
-  const userPrompt = [
-    'Generate JSON only.',
-    `Need ${normalizedCount} unique English image prompts for AI generation stability testing.`,
-    `Prioritize these underrepresented categories: ${categoryHint}.`,
-    normalizedPlan.length > 0 ? 'Follow this exact category quota:' : '',
-    normalizedPlan.length > 0 ? quotaLines : '',
-    'Return strict JSON format:',
-    '{"items":[{"prompt":"...","category":"...","tags":["...","..."]}]}',
-    'Rules:',
-    '- prompt length between 12 and 40 words',
-    '- no banned words, no NSFW',
-    '- tags 3-6 concise lowercase tokens',
-    `- category must be one of: ${allowedCategories.join(', ')}`,
-    '- output exactly requested number of items',
-  ].join('\n');
-
-  const res = await fetch(`${String(baseUrl).replace(/\/+$/, '')}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0.7,
-      max_tokens: 1800,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: 'You output strict JSON only.' },
-        { role: 'user', content: userPrompt },
-      ],
-    }),
-  });
-
-  const text = await res.text();
-  if (!res.ok) {
-    throw new Error(`DeepSeek HTTP ${res.status}: ${text.slice(0, 500)}`);
+  for (const category of plan) {
+    const normalized = normalizeGenerationCategory(category) || 'Abstract';
+    quotaMap.set(normalized, (quotaMap.get(normalized) || 0) + 1);
   }
 
-  const payload = safeJson(text);
-  const content = payload?.choices?.[0]?.message?.content || '';
-  const parsed = safeJson(content) || safeJson(content.slice(content.indexOf('{'), content.lastIndexOf('}') + 1));
-  const rows = Array.isArray(parsed?.items) ? parsed.items : [];
-
-  const fallbackPlan = normalizedPlan.length > 0 ? normalizedPlan : allowedCategories;
-  const prompts = rows
-    .map((row) => ({
-      prompt: String(row?.prompt || '').trim(),
-      category: String(row?.category || '').trim(),
-      tags: Array.isArray(row?.tags) ? row.tags.map((t) => String(t || '').trim()).filter(Boolean).slice(0, 8) : [],
-    }))
-    .filter((row) => row.prompt.length >= 10)
-    .map((row, idx) => {
-      if (!allowedCategories.includes(row.category)) {
-        row.category = fallbackPlan[idx % fallbackPlan.length] || 'Abstract';
-      }
-      if (!row.category) row.category = fallbackPlan[idx % fallbackPlan.length] || 'Abstract';
-      return row;
+  const requestCategoryBatch = async (category, batchCount) => {
+    const userPrompt = [
+      'Generate JSON only.',
+      `Need ${batchCount} unique English image prompts for the single target category "${category}".`,
+      'Every prompt must visibly and unambiguously belong to this category.',
+      'Do not mix categories. Return the exact same category value for every item.',
+      buildCategoryGenerationBrief(category),
+      'Return strict JSON format:',
+      '{"items":[{"prompt":"...","category":"...","tags":["...","..."]}]}',
+      'Rules:',
+      '- prompt length between 18 and 45 words',
+      '- no banned words, no NSFW',
+      '- tags 3-6 concise lowercase tokens',
+      `- category must be exactly "${category}"`,
+      `- output exactly ${batchCount} items`,
+    ].join('\n');
+    const res = await fetch(`${String(baseUrl).replace(/\/+$/, '')}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0.65,
+        max_tokens: Math.max(1000, batchCount * 220),
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: 'You output strict JSON only and obey the target category literally.' },
+          { role: 'user', content: userPrompt },
+        ],
+      }),
     });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`DeepSeek HTTP ${res.status}: ${text.slice(0, 500)}`);
+    const payload = safeJson(text);
+    const content = payload?.choices?.[0]?.message?.content || '';
+    const parsed = safeJson(content) || safeJson(content.slice(content.indexOf('{'), content.lastIndexOf('}') + 1));
+    const rows = Array.isArray(parsed?.items) ? parsed.items : [];
+    return rows
+      .map((row) => ({
+        prompt: composeCategoryPrompt(String(row?.prompt || '').trim(), category),
+        category,
+        tags: Array.isArray(row?.tags) ? row.tags.map((tag) => String(tag || '').trim()).filter(Boolean).slice(0, 8) : [],
+      }))
+      .filter((row) => row.prompt.length >= 10)
+      .slice(0, batchCount);
+  };
 
-  if (prompts.length === 0) {
-    logger.warn('[heartbeat] deepseek returned no valid prompts, using fallback templates');
-    return [];
+  const batches = await Promise.all(
+    [...quotaMap.entries()].map(([category, batchCount]) => requestCategoryBatch(category, batchCount)),
+  );
+  const byCategory = new Map();
+  for (const batch of batches) {
+    for (const row of batch) {
+      const list = byCategory.get(row.category) || [];
+      list.push(row);
+      byCategory.set(row.category, list);
+    }
   }
-  return prompts.slice(0, normalizedCount);
+  const output = [];
+  for (const category of plan) {
+    const normalized = normalizeGenerationCategory(category) || 'Abstract';
+    const list = byCategory.get(normalized) || [];
+    const next = list.shift();
+    if (next) output.push(next);
+  }
+  if (output.length === 0) logger.warn('[heartbeat] deepseek returned no valid prompts, using fallback templates');
+  return output;
 }
 
 function fallbackPrompts({ categories = [], categoryPlan = [], count = 12 }) {
@@ -267,7 +274,10 @@ function fallbackPrompts({ categories = [], categoryPlan = [], count = 12 }) {
   for (let i = 0; i < count; i++) {
     const cat = weighted.length > 0 ? weighted[i % weighted.length] : cats[i % cats.length];
     output.push({
-      prompt: `High detail ${cat.toLowerCase()} concept, cinematic lighting, clean composition, professional quality, test sample ${i + 1}`,
+      prompt: composeCategoryPrompt(
+        `High detail ${cat.toLowerCase()} concept, cinematic lighting, clean composition, professional quality, test sample ${i + 1}`,
+        cat,
+      ),
       category: cat,
       tags: ['stability', 'heartbeat', cat.toLowerCase()],
     });
@@ -453,6 +463,7 @@ export function startHeartbeatWorker({
           heartbeatRunId: run.id,
           heartbeatKind: kind,
           heartbeatCategory: row.category || '',
+          category: normalizeGenerationCategory(row.category) || '',
           preferredChannel,
         });
         if (job?.id) queued += 1;

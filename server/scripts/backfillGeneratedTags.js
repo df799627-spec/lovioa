@@ -9,6 +9,7 @@
 import Database from 'better-sqlite3';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { inferCategoryAndTags as classifyPrompt } from '../services/promptTaxonomy.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_FILE = join(__dirname, '../data/lovioa.db');
@@ -37,27 +38,7 @@ const TAG_RULES = [
 ];
 
 function inferCategoryAndTags(promptText = '') {
-  const text = String(promptText || '');
-  const tags = [];
-  const score = new Map();
-
-  for (const rule of TAG_RULES) {
-    if (rule.re.test(text)) {
-      if (!tags.includes(rule.tag)) tags.push(rule.tag);
-      score.set(rule.category, (score.get(rule.category) || 0) + 1);
-    }
-  }
-
-  let category = 'Generated';
-  let best = 0;
-  for (const [cat, sc] of score.entries()) {
-    if (sc > best) {
-      best = sc;
-      category = cat;
-    }
-  }
-  if (tags.length === 0) tags.push('Generated');
-  return { category, tags: tags.slice(0, 8) };
+  return classifyPrompt(promptText);
 }
 
 function parseTags(raw) {

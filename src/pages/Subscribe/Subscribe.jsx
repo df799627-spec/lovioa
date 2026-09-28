@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { api } from '../../services/api';
 import { BILLING_PLANS } from '../../config/billingPlans';
@@ -11,10 +12,35 @@ const PLAN_COVER_IMAGES = {
   premium: '/assets/pricing/premium-cover.jpg',
 };
 
+function getPlanFeatures(plan, t) {
+  const imagePrice = Number(plan.imagePrice);
+  return [
+    t('subscribe.features.oneTime'),
+    t('subscribe.features.points', { count: plan.credits.toLocaleString() }),
+    t('subscribe.features.generations', { count: plan.fastCredits.toLocaleString() }),
+    Number.isFinite(imagePrice)
+      ? t('subscribe.features.imagePrice', { price: imagePrice.toFixed(2) })
+      : null,
+  ].filter(Boolean);
+}
+
 function normalizePlan(rawPlan = {}) {
   const price = Number(rawPlan.price);
-  const fastCredits = Number(rawPlan.fastCredits ?? rawPlan.credits);
+  const creditsPerImage = Number(rawPlan.creditsPerImage || 5);
+  const declaredCredits = Number(rawPlan.credits);
+  const declaredFastCredits = Number(rawPlan.fastCredits);
+  const credits = Number.isFinite(declaredCredits)
+    ? declaredCredits
+    : Number.isFinite(declaredFastCredits)
+      ? declaredFastCredits * creditsPerImage
+      : 0;
+  const fastCredits = Number(
+    Number.isFinite(declaredFastCredits)
+      ? declaredFastCredits
+      : Math.floor(credits / creditsPerImage),
+  );
   const declaredImagePrice = Number(rawPlan.imagePrice);
+  const localPlan = BILLING_PLANS.find(plan => plan.id === rawPlan.id);
   const derivedImagePrice = Number.isFinite(declaredImagePrice)
     ? declaredImagePrice
     : Number.isFinite(price) && price > 0 && Number.isFinite(fastCredits) && fastCredits > 0
@@ -24,8 +50,11 @@ function normalizePlan(rawPlan = {}) {
   return {
     ...rawPlan,
     price: Number.isFinite(price) ? price : 0,
+    credits: Number.isFinite(credits) ? credits : 0,
+    creditsPerImage: Number.isFinite(creditsPerImage) ? creditsPerImage : 5,
     fastCredits: Number.isFinite(fastCredits) ? fastCredits : 0,
     imagePrice: Number.isFinite(derivedImagePrice) ? derivedImagePrice : null,
+    domesticPaymentUrl: String(rawPlan.domesticPaymentUrl || localPlan?.domesticPaymentUrl || '').trim(),
     coverImage: rawPlan.coverImage || PLAN_COVER_IMAGES[rawPlan.tierId] || null,
     features: Array.isArray(rawPlan.features) ? rawPlan.features : [],
   };
@@ -78,6 +107,11 @@ export default function Subscribe() {
     setLoading(true);
     setError('');
     try {
+      const plan = plans.find(item => item.id === selectedPlan);
+      if (plan?.domesticPaymentUrl) {
+        window.location.assign(plan.domesticPaymentUrl);
+        return;
+      }
       const data = await api.billingCheckout(selectedPlan);
       if (data.url) {
         window.location.href = data.url;
@@ -141,18 +175,21 @@ export default function Subscribe() {
                     {t('subscribe.imagePrice', { price: plan.imagePrice.toFixed(2) })}
                   </div>
                 )}
-                <div className="subscribe-card__credits">
-                  {plan.fastCredits.toLocaleString()} {t('subscribe.images')}
-                </div>
+              <div className="subscribe-card__credits">
+                {plan.credits.toLocaleString()} {t('subscribe.points')}
               </div>
+              <div className="subscribe-card__credits-note">
+                {t('subscribe.imagesEquivalent', { count: plan.fastCredits.toLocaleString() })}
+              </div>
+            </div>
               <ul className="subscribe-card__benefits">
-                {plan.features.map((b, i) => (
+                {getPlanFeatures(plan, t).map((benefit, i) => (
                   <li key={i} className="subscribe-card__benefit">
                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
                       <circle cx="7" cy="7" r="7" fill="var(--color-accent)" opacity="0.15"/>
                       <path d="M4 7l2 2 4-4" stroke="var(--color-accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
-                    {b}
+                    {benefit}
                   </li>
                 ))}
               </ul>
@@ -192,6 +229,13 @@ export default function Subscribe() {
             )}
           </button>
           <p className="subscribe-page__guarantee">{t('subscribe.guarantee')}</p>
+          <p className="subscribe-page__payment-hint">{t('subscribe.domesticPaymentHint')}</p>
+          <Link
+            className="subscribe-page__redeem-link"
+            to={currentUser ? '/redeem' : '/auth'}
+          >
+            {t('subscribe.redeemAfterPayment')}
+          </Link>
         </div>
 
       </div>

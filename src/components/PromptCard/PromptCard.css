@@ -18,10 +18,19 @@
   box-shadow: 0 24px 64px rgba(0,0,0,0.12), 0 8px 24px rgba(0,0,0,0.08);
 }
 
-.prompt-card__link {
+.prompt-card__image-link {
+  position: absolute;
+  inset: 0;
   display: block;
   text-decoration: none;
   color: inherit;
+  z-index: 0;
+}
+
+.prompt-card__image-link:focus-visible,
+.prompt-card__content-link:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
 }
 
 /* ── Image ──────────────────────────────────────────────── */
@@ -118,10 +127,12 @@
   align-items: flex-end;
   z-index: 3;
   padding: 20px;
+  pointer-events: none;
 }
 
 .prompt-card:hover .prompt-card__overlay {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .prompt-card__overlay-content {
@@ -196,6 +207,12 @@
 /* ── Card Footer ────────────────────────────────────────── */
 .prompt-card__content {
   padding: 9px 10px 0;
+}
+
+.prompt-card__content-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
 }
 
 .prompt-card__title {
@@ -354,9 +371,31 @@
 
 /* ── Mobile: Show overlay on tap (not hover) ───────────── */
 @media (hover: none) and (pointer: coarse) {
-  /* On touch devices, hide hover-based overlay */
+  /* Keep the core actions visible without requiring a hover gesture. */
   .prompt-card__overlay {
+    inset: auto 0 0;
+    padding: 9px 10px;
+    background: linear-gradient(to top, rgba(12, 10, 8, 0.95), rgba(12, 10, 8, 0.72));
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .prompt-card__prompt-text {
     display: none;
+  }
+
+  .prompt-card__overlay-actions {
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  .prompt-card__action-btn {
+    padding: 5px 9px;
+    font-size: 0.66rem;
+  }
+
+  .prompt-card__try-btn {
+    font-size: 0.78rem;
   }
 
   /* Always show footer actions more prominently */

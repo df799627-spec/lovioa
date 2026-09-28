@@ -4,11 +4,22 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { createHash, randomUUID } from 'crypto';
 import { resolveImageUrl, isStorageConfigured } from '../services/cloudStorage.js';
+import {
+  inferCategoryAndTags,
+  normalizeImageFingerprint,
+  normalizePromptFingerprint,
+} from '../services/promptTaxonomy.js';
+import { normalizeGenerationCategory } from '../services/categoryPromptBlueprints.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_FILE = join(__dirname, '../data/lovioa.db');
 const LEGACY_JSON = join(__dirname, '../data/prompts.json');
 const GENERATED_UPLOADS_DIR = join(__dirname, '../uploads/generated');
+
+export const CREDITS_PER_IMAGE = 5;
+export const MONTHLY_CARRYOVER_RATE = 0.3;
+const CREDIT_UNIT_VERSION = 2;
+const BILLING_TIME_ZONE = 'Asia/Shanghai';
 
 export const db = new Database(DB_FILE);
 db.pragma('journal_mode = WAL');
@@ -106,6 +117,8 @@ function migrate() {
       negative_prompt TEXT NOT NULL DEFAULT '',
       reference_image_url TEXT,
       edit_strength REAL,
+      dedup_key TEXT NOT NULL DEFAULT '',
+      category TEXT NOT NULL DEFAULT '',
       status TEXT NOT NULL DEFAULT 'queued',
       attempt_count INTEGER NOT NULL DEFAULT 0,
       max_attempts INTEGER NOT NULL DEFAULT 3,
@@ -182,6 +195,8 @@ function migrate() {
   ensureColumn('gen_jobs', 'generation_options_json', "generation_options_json TEXT NOT NULL DEFAULT '{}'");
   ensureColumn('gen_jobs', 'reference_image_url', 'reference_image_url TEXT');
   ensureColumn('gen_jobs', 'edit_strength', 'edit_strength REAL');
+  ensureColumn('gen_jobs', 'dedup_key', "dedup_key TEXT NOT NULL DEFAULT ''");
+  ensureColumn('gen_jobs', 'category', "category TEXT NOT NULL DEFAULT ''");
   ensureColumn('gen_jobs', 'status', "status TEXT NOT NULL DEFAULT 'queued'");
   ensureColumn('gen_jobs', 'attempt_count', 'attempt_count INTEGER NOT NULL DEFAULT 0');
   ensureColumn('gen_jobs', 'max_attempts', 'max_attempts INTEGER NOT NULL DEFAULT 3');
@@ -201,10 +216,18 @@ function migrate() {
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_gen_jobs_heartbeat_created ON gen_jobs(is_heartbeat, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_gen_jobs_provider_created ON gen_jobs(provider_name, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_gen_jobs_dedup_key ON gen_jobs(dedup_key, status, created_at DESC);
   `);
   ensureColumn('gen_jobs', 'started_at', 'started_at TEXT');
   ensureColumn('gen_jobs', 'finished_at', 'finished_at TEXT');
   ensureColumn('gen_jobs', 'publish_to_prompts', 'publish_to_prompts INTEGER NOT NULL DEFAULT 1');
+  ensureColumn('prompts', 'prompt_zh', "prompt_zh TEXT NOT NULL DEFAULT ''");
+  ensureColumn('gen_history', 'prompt_zh', "prompt_zh TEXT NOT NULL DEFAULT ''");
+  ensureColumn('gen_history', 'tags_json', "tags_json TEXT NOT NULL DEFAULT '[]'");
+  ensureColumn('gen_jobs', 'prompt_zh', "prompt_zh TEXT NOT NULL DEFAULT ''");
+  ensureColumn('gen_jobs', 'tags_json', "tags_json TEXT NOT NULL DEFAULT '[]'");
+  ensureColumn('generated_images', 'prompt_zh', "prompt_zh TEXT NOT NULL DEFAULT ''");
+  ensureColumn('editor_items', 'prompt_zh', "prompt_zh TEXT NOT NULL DEFAULT ''");
   db.exec(`
     CREATE TABLE IF NOT EXISTS content_moderation_checks (
       id TEXT PRIMARY KEY,
@@ -486,6 +509,92 @@ function migrate() {
 
 function nowIso() { return new Date().toISOString(); }
 
+function getBillingMonthKey(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: BILLING_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+  }).formatToParts(date).reduce((result, part) => {
+    if (part.type !== 'literal') result[part.type] = part.value;
+    return result;
+  }, {});
+  return `${parts.year}-${parts.month}`;
+}
+
+function nextBillingMonth(monthKey) {
+  const [year, month] = String(monthKey || '').split('-').map(Number);
+  if (!Number.isInteger(year) || !Number.isInteger(month)) return getBillingMonthKey();
+  const next = new Date(Date.UTC(year, month, 1));
+  return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+function migrateLegacyCreditBalances() {
+  const legacyRows = db.prepare(`
+    SELECT user_id, free_credits, paid_credits, monthly_credit_quota, credit_period
+    FROM user_balance
+    WHERE credits_unit_version < ?
+  `).all(CREDIT_UNIT_VERSION);
+  if (legacyRows.length === 0) return;
+
+  const currentPeriod = getBillingMonthKey();
+  const update = db.prepare(`
+    UPDATE user_balance
+    SET free_credits = ?,
+        paid_credits = ?,
+        monthly_credit_quota = ?,
+        credit_period = ?,
+        credits_unit_version = ?,
+        updated_at = ?
+    WHERE user_id = ?
+  `);
+  const migrate = db.transaction((rows) => {
+    for (const row of rows) {
+      const freeCredits = Math.max(0, Number(row.free_credits) || 0) * CREDITS_PER_IMAGE;
+      const paidCredits = Math.max(0, Number(row.paid_credits) || 0) * CREDITS_PER_IMAGE;
+      const existingQuota = Math.max(0, Number(row.monthly_credit_quota) || 0);
+      const monthlyQuota = Math.max(
+        freeCredits + paidCredits,
+        existingQuota * CREDITS_PER_IMAGE,
+      );
+      update.run(
+        freeCredits,
+        paidCredits,
+        monthlyQuota,
+        String(row.credit_period || '').trim() || currentPeriod,
+        CREDIT_UNIT_VERSION,
+        nowIso(),
+        row.user_id,
+      );
+    }
+  });
+  migrate(legacyRows);
+}
+
+function migrateLegacyRedeemCards() {
+  const legacyCards = db.prepare(`
+    SELECT id, credits
+    FROM redeem_cards
+    WHERE credits_unit_version < ?
+  `).all(CREDIT_UNIT_VERSION);
+  if (legacyCards.length === 0) return;
+
+  const update = db.prepare(`
+    UPDATE redeem_cards
+    SET credits = ?, credits_unit_version = ?
+    WHERE id = ?
+  `);
+  const migrate = db.transaction((cards) => {
+    for (const card of cards) {
+      update.run(
+        Math.max(0, Number(card.credits) || 0) * CREDITS_PER_IMAGE,
+        CREDIT_UNIT_VERSION,
+        card.id,
+      );
+    }
+  });
+  migrate(legacyCards);
+}
+
 function normalizePublicImageUrl(raw) {
   const url = String(raw || '').trim();
   if (!url) return '';
@@ -644,79 +753,17 @@ function hydratePromptTagsFromJson() {
   }
 }
 
-const TAG_RULES = [
-  { tag: 'Portrait', category: 'Portrait', re: /\bportrait|headshot|selfie|beauty|face|skin|close-?up|人物|人像|头像|写真|肖像|特写|妆容/i },
-  { tag: 'Fashion', category: 'Fashion', re: /\bfashion|lookbook|couture|runway|style|outfit|styling|wardrobe|服装|时尚|穿搭|秀场/i },
-  { tag: 'Editorial', category: 'Editorial', re: /\beditorial|magazine|cover|spread|vogue|harper|杂志|大片|封面|画册/i },
-  { tag: 'Landscape', category: 'Landscape', re: /\blandscape|mountain|forest|sea|ocean|sunset|sunrise|nature|valley|风景|山|海|森林|日落|日出|自然风光/i },
-  { tag: 'Architecture', category: 'Architecture', re: /\barchitecture|interior|building|brutalist|house|room|facade|建筑|室内|空间|家居|建筑外观/i },
-  { tag: 'Gaming', category: 'Gaming', re: /\bgame|gaming|rpg|character|sprite|ui asset|icon set|metroidvania|concept art|boss|像素|游戏|角色|立绘|原画/i },
-  { tag: 'E-commerce', category: 'Ecommerce', re: /\be-?commerce|product page|product shot|packshot|shop|listing|catalog|amazon|淘宝|电商|商品|产品图|主图|详情页/i },
-  { tag: 'UI Design', category: 'UIDesign', re: /\bui|ux|app interface|dashboard|wireframe|mockup|design system|界面|设计稿|仪表盘/i },
-  { tag: 'Branding', category: 'Brand', re: /\bbrand|branding|identity|logo|campaign|slogan|品牌|标识|品牌视觉/i },
-  { tag: 'Illustration', category: 'Illustration', re: /\billustration|drawing|sketch|comic|manga|watercolor|插画|绘图|手绘|水彩/i },
-  { tag: 'Social Media', category: 'SocialMedia', re: /\bsocial media|instagram|tiktok|xiaohongshu|reels|thumbnail|小红书|抖音|社媒|封面图/i },
-  { tag: 'Food', category: 'Food', re: /\bfood|beverage|dessert|drink|coffee|restaurant|plating|美食|饮品|甜点|摆盘/i },
-  { tag: 'Travel', category: 'Travel', re: /\btravel|destination|tourism|vacation|trip|itinerary|旅行|旅拍|度假|景点/i },
-  { tag: 'Street', category: 'Street', re: /\bstreet|urban|city|neon|alley|crosswalk|街头|城市|夜景|霓虹|巷子/i },
-  { tag: 'Abstract', category: 'Abstract', re: /\babstract|surreal|geometric|experimental|glitch|texture|抽象|超现实|几何|纹理/i },
-  { tag: 'Avatar', category: 'Avatar', re: /\bavatar|profile picture|character icon|pfp|人物头像|头像/i },
-];
-
-function inferCategoryAndTags(promptText = '') {
-  const text = String(promptText || '');
-  const tags = [];
-  const categoryScores = new Map();
-
-  for (const rule of TAG_RULES) {
-    if (rule.re.test(text)) {
-      if (!tags.includes(rule.tag)) tags.push(rule.tag);
-      categoryScores.set(rule.category, (categoryScores.get(rule.category) || 0) + 1);
-    }
-  }
-
-  let category = 'Generated';
-  let best = 0;
-  for (const [cat, score] of categoryScores.entries()) {
-    if (score > best) {
-      best = score;
-      category = cat;
-    }
-  }
-
-  if (tags.length === 0) tags.push('Generated');
-  return { category, tags: tags.slice(0, 8) };
-}
-
 function normalizeCategoryFromContent({ promptText = '', tags = [], manualCategory = '' } = {}) {
+  const explicit = normalizeGenerationCategory(manualCategory);
+  if (explicit) return explicit;
   const mergedText = `${String(promptText || '')} ${(Array.isArray(tags) ? tags.join(' ') : '')}`.trim();
   const inferred = inferCategoryAndTags(mergedText);
-  if (inferred.category && inferred.category !== 'Generated') {
-    return inferred.category;
-  }
-  return manualCategory || 'Generated';
+  return inferred.category || 'Generated';
 }
 
 function recategorizePromptsFromContent() {
-  try {
-    const rows = db.prepare('SELECT id, prompt, tags_json, category FROM prompts').all();
-    if (!rows.length) return;
-    const update = db.prepare('UPDATE prompts SET category = ? WHERE id = ?');
-    const tx = db.transaction((items) => {
-      for (const row of items) {
-        const tags = safeParseTags(row.tags_json || '[]');
-        const category = normalizeCategoryFromContent({
-          promptText: row.prompt || '',
-          tags,
-          manualCategory: row.category || 'Generated',
-        });
-        if (category !== row.category) update.run(category, row.id);
-      }
-    });
-    tx(rows);
-  } catch (e) {
-    if (process.env.NODE_ENV !== 'production') console.error('[migrate] recategorizePromptsFromContent failed:', e);
-  }
+  // Categories are selected before generation. Historical repair is explicit
+  // and must not silently relabel records on every server boot.
 }
 
 export function rowToPrompt(row) {
@@ -724,6 +771,7 @@ export function rowToPrompt(row) {
     id: row.id,
     imageUrl: normalizePublicImageUrl(row.image_url),
     prompt: row.prompt,
+    promptZh: row.prompt_zh || '',
     author: {
       name: row.author_name,
       avatar: row.author_avatar,
@@ -744,10 +792,12 @@ function rowToHistory(row) {
     id: row.id,
     imageUrl: normalizePublicImageUrl(row.image_url),
     prompt: row.prompt,
+    promptZh: row.prompt_zh || '',
+    tags: safeParseTags(row.tags_json || '[]'),
     model: row.model,
     mode: row.mode,
     userId: row.user_id,
-    category: row.category || 'Abstract',
+    category: row.category || 'Generated',
     moderationStatus: row.moderation_status || 'pending',
     createdAt: row.created_at,
   };
@@ -765,6 +815,7 @@ function rowToGenJob(row) {
     quality: row.quality,
     generationOptions,
     prompt: row.prompt,
+    promptZh: row.prompt_zh || '',
     negativePrompt: row.negative_prompt,
     referenceImageUrl: row.reference_image_url,
     publishToPrompts: !!row.publish_to_prompts,
@@ -785,6 +836,8 @@ function rowToGenJob(row) {
     heartbeatCategory: row.heartbeat_category || '',
     preferredChannel: row.preferred_channel || '',
     priority: Number(row.priority || 0),
+    dedupKey: row.dedup_key || '',
+    category: normalizeGenerationCategory(row.category) || '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     startedAt: row.started_at,
@@ -891,6 +944,9 @@ ensureColumn('users', 'onboarding_source', 'onboarding_source TEXT NOT NULL DEFA
 ensureColumn('users', 'onboarding_role', 'onboarding_role TEXT NOT NULL DEFAULT \'\'');
 ensureColumn('users', 'onboarding_use_case', 'onboarding_use_case TEXT NOT NULL DEFAULT \'[]\'');
 ensureColumn('users', 'onboarding_completed_at', 'onboarding_completed_at TEXT NOT NULL DEFAULT \'\'');
+ensureColumn('users', 'domestic_plan', 'domestic_plan TEXT');
+ensureColumn('users', 'domestic_plan_redeemed_at', 'domestic_plan_redeemed_at TEXT');
+ensureColumn('users', 'domestic_redeem_card_id', 'domestic_redeem_card_id TEXT');
 ensureColumn('prompts', 'extra_data', 'extra_data TEXT NOT NULL DEFAULT \'{}\'');
 
 // ── Billing ────────────────────────────────────────────────────────────────────
@@ -918,9 +974,37 @@ db.exec(`
     free_credits INTEGER NOT NULL DEFAULT 0,
     paid_credits INTEGER NOT NULL DEFAULT 0,
     lifetime_generations INTEGER NOT NULL DEFAULT 0,
+    monthly_credit_quota INTEGER NOT NULL DEFAULT 0,
+    credit_period TEXT NOT NULL DEFAULT '',
+    credits_unit_version INTEGER NOT NULL DEFAULT 2,
     updated_at TEXT NOT NULL
   );
 `);
+ensureColumn('user_balance', 'monthly_credit_quota', 'monthly_credit_quota INTEGER NOT NULL DEFAULT 0');
+ensureColumn('user_balance', 'credit_period', "credit_period TEXT NOT NULL DEFAULT ''");
+ensureColumn('user_balance', 'credits_unit_version', 'credits_unit_version INTEGER NOT NULL DEFAULT 1');
+migrateLegacyCreditBalances();
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS redeem_cards (
+    id TEXT PRIMARY KEY,
+    code_hash TEXT NOT NULL UNIQUE,
+    code_last4 TEXT NOT NULL,
+    plan_id TEXT NOT NULL,
+    credits INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'available',
+    redeemed_by TEXT,
+    redeemed_at TEXT,
+    imported_at TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'domestic',
+    credits_unit_version INTEGER NOT NULL DEFAULT 2
+  );
+  CREATE INDEX IF NOT EXISTS idx_redeem_cards_status ON redeem_cards(status);
+  CREATE INDEX IF NOT EXISTS idx_redeem_cards_plan ON redeem_cards(plan_id);
+  CREATE INDEX IF NOT EXISTS idx_redeem_cards_redeemed_by ON redeem_cards(redeemed_by);
+`);
+ensureColumn('redeem_cards', 'credits_unit_version', 'credits_unit_version INTEGER NOT NULL DEFAULT 1');
+migrateLegacyRedeemCards();
 
 // Daily login rewards are keyed by the user's local calendar date.
 db.exec(`
@@ -969,11 +1053,21 @@ export function createUser({ id, username, email, passwordHash, avatar }) {
     INSERT INTO users (id, username, email, password_hash, avatar, created_at)
     VALUES (?, ?, ?, ?, ?, ?)
   `).run(id, username, email.toLowerCase(), passwordHash, avatar, nowIso());
-  // Give 6 free image credits on registration.
+  // Give 6 free image generations as points on registration.
   db.prepare(`
-    INSERT OR IGNORE INTO user_balance (user_id, free_credits, paid_credits, lifetime_generations, updated_at)
-    VALUES (?, 6, 0, 0, ?)
-  `).run(id, nowIso());
+    INSERT OR IGNORE INTO user_balance (
+      user_id, free_credits, paid_credits, lifetime_generations,
+      monthly_credit_quota, credit_period, credits_unit_version, updated_at
+    )
+    VALUES (?, ?, 0, 0, ?, ?, ?, ?)
+  `).run(
+    id,
+    CREDITS_PER_IMAGE * 6,
+    CREDITS_PER_IMAGE * 6,
+    getBillingMonthKey(),
+    CREDIT_UNIT_VERSION,
+    nowIso(),
+  );
   claimDailyLoginReward(id, { grant: false });
   return getUserById(id);
 }
@@ -1081,7 +1175,7 @@ export function listPrompts({ category, search, sort, authorUserId, limit = 500,
   }
 
   if (search && String(search).trim()) {
-    where.push('(LOWER(prompt) LIKE @q OR LOWER(tags_json) LIKE @q OR LOWER(category) LIKE @q OR LOWER(author_name) LIKE @q)');
+    where.push('(LOWER(prompt) LIKE @q OR LOWER(prompt_zh) LIKE @q OR LOWER(tags_json) LIKE @q OR LOWER(category) LIKE @q OR LOWER(author_name) LIKE @q)');
     params.q = `%${String(search).toLowerCase()}%`;
   }
 
@@ -1098,22 +1192,31 @@ export function listPrompts({ category, search, sort, authorUserId, limit = 500,
       id,
       CASE WHEN image_url LIKE 'data:%' THEN '/image-placeholder.svg' ELSE image_url END AS image_url,
       prompt, author_name, author_avatar, author_prompt_count, author_user_id,
-      tags_json, category, likes, liked, saved, created_at
+      tags_json, category, likes, liked, saved, created_at, prompt_zh
     FROM prompts
     ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
     ORDER BY ${orderBy}
     LIMIT @limit OFFSET @offset
   `;
-  params.limit = normalizedLimit;
+  params.limit = Math.min(2000, normalizedLimit * 4);
   params.offset = normalizedOffset;
   const rows = db.prepare(sql).all(params).map(rowToPrompt);
 
-  // Explore feed de-duplication by stable id only.
-  // Image URLs can be temporarily identical/empty while jobs are being persisted.
   if (!authorUserId) {
     const byId = new Map();
+    const byImage = new Set();
+    const byPrompt = new Set();
     for (const item of rows) {
-      if (!byId.has(item.id)) byId.set(item.id, item);
+      if (byId.has(item.id)) continue;
+      const isGenerated = String(item.id || '').startsWith('gen-');
+      const imageKey = isGenerated ? normalizeImageFingerprint(item.imageUrl) : '';
+      const promptKey = isGenerated ? normalizePromptFingerprint(item.prompt) : '';
+      if (imageKey && byImage.has(imageKey)) continue;
+      if (promptKey && byPrompt.has(promptKey)) continue;
+      byId.set(item.id, item);
+      if (imageKey) byImage.add(imageKey);
+      if (promptKey) byPrompt.add(promptKey);
+      if (byId.size >= normalizedLimit) break;
     }
     return [...byId.values()];
   }
@@ -1136,7 +1239,7 @@ export function getEditorShowcaseItems({ limit = 30 } = {}) {
   try {
     rows = db.prepare(`
       SELECT id, image_url, prompt, author_name, author_avatar, author_prompt_count,
-             tags_json, category, likes, liked, saved, created_at, author_user_id,
+      tags_json, category, likes, liked, saved, created_at, author_user_id, prompt_zh,
              extra_data
       FROM prompts
       WHERE extra_data LIKE '%originalImageUrl%'
@@ -1316,7 +1419,10 @@ export function addHistory({ imageUrl, prompt, model, mode, userId, jobId, categ
   }
 
   const inferred = inferCategoryAndTags(prompt || '');
-  const normalizedCategory = String(category || inferred.category || 'Generated').trim() || 'Generated';
+  const explicitCategory = normalizeGenerationCategory(category);
+  // The category is selected before generation. Content inference is only a
+  // fallback for legacy callers that did not provide generation metadata.
+  const normalizedCategory = explicitCategory || inferred.category || 'Generated';
 
   // Always keep a complete generation history.
   db.prepare('INSERT INTO gen_history (id, image_url, prompt, model, mode, user_id, category, moderation_status, job_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
@@ -1383,6 +1489,7 @@ export function approveHistory(id) {
   // Also insert into prompts table (single source of truth for approved content)
   // and generated_images (gallery source) — all in one transaction.
   const inferred = inferCategoryAndTags(row.prompt || '');
+  const finalCategory = normalizeGenerationCategory(row.category) || inferred.category || 'Generated';
   const user = row.user_id ? getUserById(row.user_id) : null;
   const promptsId = `gen-${id}`;
 
@@ -1401,7 +1508,7 @@ export function approveHistory(id) {
       0,
       row.user_id || null,
       JSON.stringify(inferred.tags),
-      row.category || inferred.category,
+      finalCategory,
       row.created_at,
     );
     db.prepare(`
@@ -1414,7 +1521,7 @@ export function approveHistory(id) {
       row.prompt || '',
       row.model || '',
       row.image_url,
-      row.category || inferred.category,
+      finalCategory,
       JSON.stringify(inferred.tags),
       user?.username || 'Lovioa',
       user?.avatar || 'https://api.dicebear.com/7.x/miniavs/svg?seed=pf',
@@ -1534,7 +1641,7 @@ export function listGenHistoryForModeration({ category = '', search = '', status
     params.category = category;
   }
   if (search && String(search).trim()) {
-    where.push('(LOWER(prompt) LIKE @q OR LOWER(image_url) LIKE @q)');
+    where.push('(LOWER(prompt) LIKE @q OR LOWER(prompt_zh) LIKE @q OR LOWER(image_url) LIKE @q)');
     params.q = `%${String(search).toLowerCase()}%`;
   }
 
@@ -1586,12 +1693,45 @@ export function enqueueGenJob({
   heartbeatRunId = '',
   heartbeatKind = '',
   heartbeatCategory = '',
+  category = '',
   preferredChannel = '',
   priority = 0,
 }) {
+  const status = String(initialStatus || 'queued');
+  const normalizedGenerationOptions = generationOptions && typeof generationOptions === 'object'
+    ? generationOptions
+    : {};
+  const forceNew = Boolean(normalizedGenerationOptions.forceNew || normalizedGenerationOptions.allowDuplicate);
+  const dedupKey = createHash('sha256')
+    .update(JSON.stringify({
+      prompt: normalizePromptFingerprint(prompt),
+      mode: String(mode || 'text'),
+      model: String(model || ''),
+      size: String(size || ''),
+      quality: String(quality || ''),
+      negativePrompt: normalizePromptFingerprint(negativePrompt),
+      referenceImageUrl: normalizeImageFingerprint(referenceImageUrl),
+      aspectRatio: String(normalizedGenerationOptions.aspectRatio || ''),
+    }))
+    .digest('hex');
+
+  // A double click, retrying browser request, or duplicated internal enqueue
+  // must not create two identical in-flight generations or charge twice.
+  if (!isHeartbeat && !forceNew) {
+    const existing = db.prepare(`
+      SELECT *
+      FROM gen_jobs
+      WHERE dedup_key = ?
+        AND user_id IS ?
+        AND status IN ('queued', 'running', 'fast_running')
+      ORDER BY created_at DESC
+      LIMIT 1
+    `).get(dedupKey, userId || null);
+    if (existing) return rowToGenJob(existing);
+  }
+
   const id = randomUUID();
   const now = nowIso();
-  const status = String(initialStatus || 'queued');
   const isRunningLike = status === 'running' || status === 'fast_running';
   const initialAttemptCount = isRunningLike ? 1 : 0;
   const startedAt = isRunningLike ? now : null;
@@ -1604,7 +1744,7 @@ export function enqueueGenJob({
     // - valid userId with balance: deducts the first available credit type atomically.
     if (userId) {
       // Keep legacy accounts consistent with the billing endpoint before charging.
-      ensureUserBalance(userId, 3);
+      ensureUserBalance(userId, CREDITS_PER_IMAGE * 3);
       const deducted = tryDeductCredit(userId);
       if (!deducted) throw new Error('INSUFFICIENT_CREDITS');
     }
@@ -1612,13 +1752,13 @@ export function enqueueGenJob({
     db.prepare(`
       INSERT INTO gen_jobs (
         id, user_id, mode, model, size, quality, generation_options_json, prompt, negative_prompt,
-        reference_image_url, edit_strength, publish_to_prompts, status, attempt_count, max_attempts, queued_at, next_retry_at,
+        reference_image_url, edit_strength, dedup_key, category, publish_to_prompts, status, attempt_count, max_attempts, queued_at, next_retry_at,
         last_error, result_image_url, source_channel, provider_name, latency_ms, is_heartbeat,
         heartbeat_run_id, heartbeat_kind, heartbeat_category, preferred_channel, priority,
         created_at, updated_at, started_at, finished_at
       ) VALUES (
         @id, @userId, @mode, @model, @size, @quality, @generationOptionsJson, @prompt, @negativePrompt,
-        @referenceImageUrl, @editStrength, @publishToPrompts, @status, @attemptCount, @maxAttempts, @queuedAt, @nextRetryAt,
+        @referenceImageUrl, @editStrength, @dedupKey, @category, @publishToPrompts, @status, @attemptCount, @maxAttempts, @queuedAt, @nextRetryAt,
         @lastError, @resultImageUrl, @sourceChannel, @providerName, @latencyMs, @isHeartbeat,
         @heartbeatRunId, @heartbeatKind, @heartbeatCategory, @preferredChannel, @priority,
         @createdAt, @updatedAt, @startedAt, @finishedAt
@@ -1630,11 +1770,13 @@ export function enqueueGenJob({
       model,
       size,
       quality,
-      generationOptionsJson: JSON.stringify(generationOptions && typeof generationOptions === 'object' ? generationOptions : {}),
+      generationOptionsJson: JSON.stringify(normalizedGenerationOptions),
       prompt,
       negativePrompt,
       referenceImageUrl,
       editStrength: editStrength ?? null,
+      dedupKey,
+      category: normalizeGenerationCategory(category) || '',
       publishToPrompts: publishToPrompts ? 1 : 0,
       status,
       attemptCount: initialAttemptCount,
@@ -2016,6 +2158,7 @@ function rowToGalleryImage(row) {
     id: row.id,
     imageUrl: safeImageUrl,
     prompt: sourcePrompt,
+    promptZh: String(row.prompt_zh || '').trim(),
     author: {
       name: row.author_name || 'Lovioa',
       avatar: row.author_avatar || 'https://api.dicebear.com/7.x/miniavs/svg?seed=pf',
@@ -2033,7 +2176,7 @@ function rowToGalleryImage(row) {
 
 export function listGeneratedImages({ category, search, limit = 300 }) {
   const params = { limit: Math.max(1, Math.min(300, Number(limit || 300))) };
-  const historyParams = { limit: params.limit };
+  const sourceLimit = Math.min(2000, Math.max(params.limit * 4, params.limit));
 
   const where = [];
   const historyWhere = [];
@@ -2042,26 +2185,25 @@ export function listGeneratedImages({ category, search, limit = 300 }) {
     where.push('category = @category');
     historyWhere.push('category = @category');
     params.category = category;
-    historyParams.category = category;
   }
   if (search && String(search).trim()) {
     const q = `%${String(search).toLowerCase()}%`;
     where.push('(LOWER(source_prompt) LIKE @q OR LOWER(tags_json) LIKE @q OR LOWER(category) LIKE @q OR LOWER(author_name) LIKE @q)');
-    historyWhere.push('(LOWER(prompt) LIKE @q OR LOWER(image_url) LIKE @q)');
+    historyWhere.push('(LOWER(prompt) LIKE @q OR LOWER(prompt_zh) LIKE @q OR LOWER(image_url) LIKE @q)');
     params.q = q;
-    historyParams.q = q;
   }
+  historyWhere.push('NOT EXISTS (SELECT 1 FROM generated_images g2 WHERE g2.id = gen_history.id)');
   const whereStr = where.length ? `WHERE ${where.join(' AND ')}` : '';
-  const historyWhereStr = historyWhere.length ? `WHERE ${historyWhere.join(' AND ')}` : '';
+  const historyWhereStr = `WHERE ${historyWhere.join(' AND ')}`;
 
-  // Use UNION ALL + subquery to ensure a single global ORDER BY and LIMIT,
-  // avoiding the previous bug where each source independently fetched 300 rows
-  // before deduplication.
+  // generated_images is the canonical gallery source. History is only included
+  // when its row has not been materialized there yet.
   const sql = `
     SELECT * FROM (
       SELECT
         id,
         image_url,
+        prompt_zh,
         source_prompt AS prompt,
         model,
         category,
@@ -2079,6 +2221,7 @@ export function listGeneratedImages({ category, search, limit = 300 }) {
       SELECT
         id,
         image_url,
+        '' AS prompt_zh,
         prompt,
         model,
         category,
@@ -2094,13 +2237,23 @@ export function listGeneratedImages({ category, search, limit = 300 }) {
       ${historyWhereStr}
     ) combined
     ORDER BY created_at DESC
-    LIMIT @limit
+    LIMIT @sourceLimit
   `;
 
-  const rows = db.prepare(sql).all(params).map(rowToGalleryImage);
+  const rows = db.prepare(sql).all({ ...params, sourceLimit }).map(rowToGalleryImage);
   const byId = new Map();
+  const byImage = new Set();
+  const byPrompt = new Set();
   for (const item of rows) {
-    if (!byId.has(item.id)) byId.set(item.id, item);
+    const imageKey = normalizeImageFingerprint(item.imageUrl);
+    const promptKey = normalizePromptFingerprint(item.prompt);
+    if (byId.has(item.id)) continue;
+    if (imageKey && byImage.has(imageKey)) continue;
+    if (promptKey && byPrompt.has(promptKey)) continue;
+    byId.set(item.id, item);
+    if (imageKey) byImage.add(imageKey);
+    if (promptKey) byPrompt.add(promptKey);
+    if (byId.size >= params.limit) break;
   }
   return [...byId.values()];
 }
@@ -2615,24 +2768,97 @@ export function deleteUser(userId) {
 
 // ── Billing / Subscriptions ────────────────────────────────────────────────────
 
-export function getUserBalance(userId) {
+function readUserBalance(userId) {
   const row = db.prepare('SELECT * FROM user_balance WHERE user_id = ?').get(userId);
   return row ? {
     userId: row.user_id,
     freeCredits: row.free_credits,
     paidCredits: row.paid_credits,
+    totalCredits: row.free_credits + row.paid_credits,
+    monthlyCreditQuota: row.monthly_credit_quota,
+    creditPeriod: row.credit_period,
+    creditsPerImage: CREDITS_PER_IMAGE,
+    monthlyCarryoverRate: MONTHLY_CARRYOVER_RATE,
     lifetimeGenerations: row.lifetime_generations,
     updatedAt: row.updated_at,
   } : null;
 }
 
-export function ensureUserBalance(userId, freeCredits = 3) {
+function applyMonthlyCreditRollover(userId) {
+  const row = db.prepare(`
+    SELECT free_credits, paid_credits, monthly_credit_quota, credit_period
+    FROM user_balance
+    WHERE user_id = ?
+  `).get(userId);
+  if (!row) return;
+
+  const currentPeriod = getBillingMonthKey();
+  let creditPeriod = String(row.credit_period || '').trim();
+  let freeCredits = Math.max(0, Number(row.free_credits) || 0);
+  let paidCredits = Math.max(0, Number(row.paid_credits) || 0);
+  let totalCredits = freeCredits + paidCredits;
+  let monthlyQuota = Math.max(0, Number(row.monthly_credit_quota) || 0);
+  let changed = false;
+
+  if (!/^\d{4}-\d{2}$/.test(creditPeriod)) {
+    creditPeriod = currentPeriod;
+    monthlyQuota = Math.max(monthlyQuota, totalCredits);
+    changed = true;
+  }
+
+  while (creditPeriod < currentPeriod) {
+    const carryoverCap = Math.floor(monthlyQuota * MONTHLY_CARRYOVER_RATE);
+    totalCredits = Math.min(totalCredits, carryoverCap);
+    freeCredits = 0;
+    paidCredits = totalCredits;
+    monthlyQuota = totalCredits;
+    creditPeriod = nextBillingMonth(creditPeriod);
+    changed = true;
+  }
+
+  if (!changed) return;
+  db.prepare(`
+    UPDATE user_balance
+    SET free_credits = ?,
+        paid_credits = ?,
+        monthly_credit_quota = ?,
+        credit_period = ?,
+        updated_at = ?
+    WHERE user_id = ?
+  `).run(
+    freeCredits,
+    paidCredits,
+    monthlyQuota,
+    creditPeriod,
+    nowIso(),
+    userId,
+  );
+}
+
+export function getUserBalance(userId) {
+  if (!userId) return null;
+  applyMonthlyCreditRollover(userId);
+  return readUserBalance(userId);
+}
+
+export function ensureUserBalance(userId, freeCredits = CREDITS_PER_IMAGE * 3) {
   const existing = db.prepare('SELECT user_id FROM user_balance WHERE user_id = ?').get(userId);
   if (existing) return getUserBalance(userId);
+  const initialCredits = Math.max(0, Math.floor(Number(freeCredits) || 0));
   db.prepare(`
-    INSERT INTO user_balance (user_id, free_credits, paid_credits, lifetime_generations, updated_at)
-    VALUES (?, ?, 0, 0, ?)
-  `).run(userId, freeCredits, nowIso());
+    INSERT INTO user_balance (
+      user_id, free_credits, paid_credits, lifetime_generations,
+      monthly_credit_quota, credit_period, credits_unit_version, updated_at
+    )
+    VALUES (?, ?, 0, 0, ?, ?, ?, ?)
+  `).run(
+    userId,
+    initialCredits,
+    initialCredits,
+    getBillingMonthKey(),
+    CREDIT_UNIT_VERSION,
+    nowIso(),
+  );
   return getUserBalance(userId);
 }
 
@@ -2656,13 +2882,13 @@ export function claimDailyLoginReward(userId, { grant = true } = {}) {
   const now = nowIso();
   const claim = db.transaction(() => {
     // Existing legacy accounts may not have a balance row yet. Do not grant
-    // the new 6-credit signup package; preserve their original 3-credit
-    // fallback, then add the daily reward.
-    ensureUserBalance(userId, 3);
+    // the new 6-image signup package; preserve their original 3-image
+    // fallback, then add the daily points reward.
+    ensureUserBalance(userId, CREDITS_PER_IMAGE * 3);
     const inserted = db.prepare(`
       INSERT OR IGNORE INTO user_daily_rewards (user_id, reward_date, credits, created_at)
       VALUES (?, ?, ?, ?)
-    `).run(userId, rewardDate, grant ? 1 : 0, now);
+    `).run(userId, rewardDate, grant ? CREDITS_PER_IMAGE : 0, now);
 
     if (inserted.changes === 0) {
       return { granted: false, credits: 0, rewardDate };
@@ -2672,10 +2898,12 @@ export function claimDailyLoginReward(userId, { grant = true } = {}) {
 
     db.prepare(`
       UPDATE user_balance
-      SET free_credits = free_credits + 1, updated_at = ?
+      SET free_credits = free_credits + ?,
+          monthly_credit_quota = monthly_credit_quota + ?,
+          updated_at = ?
       WHERE user_id = ?
-    `).run(now, userId);
-    return { granted: true, credits: 1, rewardDate };
+    `).run(CREDITS_PER_IMAGE, CREDITS_PER_IMAGE, now, userId);
+    return { granted: true, credits: CREDITS_PER_IMAGE, rewardDate };
   });
 
   return claim();
@@ -2688,25 +2916,26 @@ export function getTotalCredits(userId) {
 }
 
 export function tryDeductCredit(userId) {
-  // Atomic: deduct the first available credit type, but only if at least one exists.
-  // Returns true if deduction succeeded, false if insufficient credits.
+  // Atomic: deduct the first available credit type, but only if at least one
+  // image's worth of points exists.
+  applyMonthlyCreditRollover(userId);
   const now = nowIso();
   let res = db.prepare(`
     UPDATE user_balance
-    SET free_credits = free_credits - 1,
+    SET free_credits = free_credits - ?,
         lifetime_generations = lifetime_generations + 1,
         updated_at = ?
-    WHERE user_id = ? AND free_credits > 0
-  `).run(now, userId);
+    WHERE user_id = ? AND free_credits >= ?
+  `).run(CREDITS_PER_IMAGE, now, userId, CREDITS_PER_IMAGE);
   if (res.changes > 0) return true;
 
   res = db.prepare(`
     UPDATE user_balance
-    SET paid_credits = paid_credits - 1,
+    SET paid_credits = paid_credits - ?,
         lifetime_generations = lifetime_generations + 1,
         updated_at = ?
-    WHERE user_id = ? AND paid_credits > 0
-  `).run(now, userId);
+    WHERE user_id = ? AND paid_credits >= ?
+  `).run(CREDITS_PER_IMAGE, now, userId, CREDITS_PER_IMAGE);
   return res.changes > 0;
 }
 
@@ -2717,21 +2946,41 @@ export function deductCredit(userId) {
 
 export function addCredits(userId, amount, type = 'paid') {
   if (!Number.isFinite(amount) || amount === 0) return getUserBalance(userId);
+  const normalizedAmount = Math.floor(Number(amount));
+  if (normalizedAmount <= 0) return getUserBalance(userId);
   ensureUserBalance(userId, 0);
+  applyMonthlyCreditRollover(userId);
   const now = nowIso();
 
   if (type === 'refund') {
-    // Refunds: cap negative amount so balance never goes below 0.
-    const refundAmt = Math.max(0, Math.min(Math.abs(amount), getTotalCredits(userId)));
+    // Refunds restore paid points without changing the month's issued quota.
+    const current = readUserBalance(userId);
+    const refundAmt = Math.max(0, Math.min(normalizedAmount, current?.paidCredits || 0));
     if (refundAmt > 0) {
-      db.prepare('UPDATE user_balance SET paid_credits = paid_credits - ?, updated_at = ? WHERE user_id = ?').run(refundAmt, now, userId);
+      db.prepare(`
+        UPDATE user_balance
+        SET paid_credits = paid_credits - ?, updated_at = ?
+        WHERE user_id = ?
+      `).run(refundAmt, now, userId);
     }
-  } else if (amount > 0) {
-    // Positive addition (paid or free).
+  } else if (normalizedAmount > 0) {
+    // Positive additions count toward the current month's quota.
     if (type === 'paid') {
-      db.prepare('UPDATE user_balance SET paid_credits = paid_credits + ?, updated_at = ? WHERE user_id = ?').run(amount, now, userId);
+      db.prepare(`
+        UPDATE user_balance
+        SET paid_credits = paid_credits + ?,
+            monthly_credit_quota = monthly_credit_quota + ?,
+            updated_at = ?
+        WHERE user_id = ?
+      `).run(normalizedAmount, normalizedAmount, now, userId);
     } else {
-      db.prepare('UPDATE user_balance SET free_credits = free_credits + ?, updated_at = ? WHERE user_id = ?').run(amount, now, userId);
+      db.prepare(`
+        UPDATE user_balance
+        SET free_credits = free_credits + ?,
+            monthly_credit_quota = monthly_credit_quota + ?,
+            updated_at = ?
+        WHERE user_id = ?
+      `).run(normalizedAmount, normalizedAmount, now, userId);
     }
   }
   return getUserBalance(userId);
@@ -2775,9 +3024,146 @@ export function cancelSubscriptionByUserId(userId) {
 
 export function getUserBilling(userId) {
   if (!userId) return null;
-  const balance = ensureUserBalance(userId, 3);
+  const balance = ensureUserBalance(userId, CREDITS_PER_IMAGE * 3);
   const subscription = getSubscriptionByUserId(userId);
   return { balance, subscription };
+}
+
+const DOMESTIC_PLAN_RANK = {
+  starter_cny: 1,
+  standard_cny: 2,
+  premium_cny: 3,
+};
+
+export class RedeemCardError extends Error {
+  constructor(code, message) {
+    super(message);
+    this.code = code;
+  }
+}
+
+export function normalizeRedeemCode(code) {
+  return String(code || '').trim().replace(/[\s-]/g, '').toUpperCase();
+}
+
+export function hashRedeemCode(code) {
+  return createHash('sha256').update(normalizeRedeemCode(code)).digest('hex');
+}
+
+export function importRedeemCards(cards = []) {
+  const uniqueCards = new Map();
+  for (const card of Array.isArray(cards) ? cards : []) {
+    const code = normalizeRedeemCode(card?.code);
+    const planId = String(card?.planId || '').trim();
+    const credits = Number(card?.credits);
+    if (code.length < 8 || !DOMESTIC_PLAN_RANK[planId] || !Number.isInteger(credits) || credits <= 0) continue;
+    const codeHash = hashRedeemCode(code);
+    uniqueCards.set(codeHash, {
+      codeHash,
+      codeLast4: code.slice(-4),
+      planId,
+      credits,
+      source: String(card?.source || 'domestic').trim() || 'domestic',
+    });
+  }
+
+  const insert = db.prepare(`
+    INSERT OR IGNORE INTO redeem_cards (
+      id, code_hash, code_last4, plan_id, credits, status, redeemed_by,
+      redeemed_at, imported_at, source, credits_unit_version
+    ) VALUES (?, ?, ?, ?, ?, 'available', NULL, NULL, ?, ?, ?)
+  `);
+  const now = nowIso();
+  const addCards = db.transaction((items) => {
+    let imported = 0;
+    for (const card of items) {
+      const result = insert.run(
+        randomUUID(),
+        card.codeHash,
+        card.codeLast4,
+        card.planId,
+        card.credits,
+        now,
+        card.source,
+        CREDIT_UNIT_VERSION,
+      );
+      imported += result.changes;
+    }
+    return imported;
+  });
+
+  const imported = addCards([...uniqueCards.values()]);
+  return {
+    imported,
+    skipped: Math.max(0, (Array.isArray(cards) ? cards.length : 0) - imported),
+  };
+}
+
+export function redeemCard({ code, userId }) {
+  const normalizedCode = normalizeRedeemCode(code);
+  if (normalizedCode.length < 8) {
+    throw new RedeemCardError('INVALID', '卡密格式不正确');
+  }
+
+  const codeHash = hashRedeemCode(normalizedCode);
+  const redeem = db.transaction(() => {
+    const card = db.prepare(`
+      SELECT id, code_last4, plan_id, credits, status
+      FROM redeem_cards
+      WHERE code_hash = ?
+      LIMIT 1
+    `).get(codeHash);
+
+    if (!card) throw new RedeemCardError('INVALID', '卡密不存在');
+    if (card.status === 'redeemed') throw new RedeemCardError('USED', '卡密已被兑换');
+    if (card.status !== 'available') throw new RedeemCardError('DISABLED', '卡密已失效');
+
+    const user = db.prepare('SELECT id, domestic_plan FROM users WHERE id = ?').get(userId);
+    if (!user) throw new RedeemCardError('USER_NOT_FOUND', '用户不存在');
+
+    const currentRank = DOMESTIC_PLAN_RANK[user.domestic_plan] || 0;
+    const nextRank = DOMESTIC_PLAN_RANK[card.plan_id] || 0;
+    if (!nextRank || currentRank >= nextRank) {
+      throw new RedeemCardError('ALREADY_REDEEMED', '当前账户已有更高或相同套餐权益');
+    }
+
+    const now = nowIso();
+    const claim = db.prepare(`
+      UPDATE redeem_cards
+      SET status = 'redeemed', redeemed_by = ?, redeemed_at = ?
+      WHERE id = ? AND status = 'available'
+    `).run(userId, now, card.id);
+    if (claim.changes !== 1) throw new RedeemCardError('USED', '卡密已被兑换');
+
+    db.prepare(`
+      INSERT OR IGNORE INTO user_balance (
+        user_id, free_credits, paid_credits, lifetime_generations,
+        monthly_credit_quota, credit_period, credits_unit_version, updated_at
+      ) VALUES (?, 0, 0, 0, 0, ?, ?, ?)
+    `).run(userId, getBillingMonthKey(), CREDIT_UNIT_VERSION, now);
+    applyMonthlyCreditRollover(userId);
+    db.prepare(`
+      UPDATE user_balance
+      SET paid_credits = paid_credits + ?,
+          monthly_credit_quota = monthly_credit_quota + ?,
+          updated_at = ?
+      WHERE user_id = ?
+    `).run(card.credits, card.credits, now, userId);
+    db.prepare(`
+      UPDATE users
+      SET domestic_plan = ?, domestic_plan_redeemed_at = ?, domestic_redeem_card_id = ?
+      WHERE id = ?
+    `).run(card.plan_id, now, card.id, userId);
+
+    return {
+      planId: card.plan_id,
+      credits: card.credits,
+      imageCount: Math.floor(card.credits / CREDITS_PER_IMAGE),
+      cardLast4: card.code_last4,
+    };
+  });
+
+  return redeem();
 }
 
 // Stripe webhook: check if event already processed

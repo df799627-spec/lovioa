@@ -32,6 +32,7 @@ loadEnvFile(path.join(__dirname, '.env'));
 const OPENAI_BASE_URL = process.env.OPENAI_API_BASE_URL || process.env.VITE_OPENAI_API_BASE_URL || 'https://api.openai.com/v1';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || process.env.VITE_OPENAI_API_KEY || '';
 const OPENAI_IMAGE_MODEL_KEYS = process.env.OPENAI_IMAGE_MODEL_KEYS || '';
+const NANO_IMAGE_PROXY_URL = process.env.NANO_IMAGE_PROXY_URL || 'https://home.code2alita.com/api/playground/image';
 const GEN_FAST_API_BASE_URL = process.env.GEN_FAST_API_BASE_URL || '';
 const GEN_FAST_API_BASE_URL_CN = process.env.GEN_FAST_API_BASE_URL_CN || '';
 const GEN_FAST_API_PATH = process.env.GEN_FAST_API_PATH || '/v1/api/generate';
@@ -87,10 +88,21 @@ function parseModelApiKeys(raw) {
   }
 }
 
+const NANO_IMAGE_MODEL_MAP = parseModelApiKeys(
+  process.env.NANO_IMAGE_MODEL_MAP
+  || JSON.stringify({
+    'gemini-3-pro-image': 'gpt-image-gemini-3-pro-image',
+    'gemini-3.1-flash-image': 'gpt-image-gemini-3.1-flash-image',
+    'image-gemini-3-pro-image': 'gpt-image-gemini-3-pro-image',
+  }),
+);
+
 const worker = startGenQueueWorker({
   baseUrl: OPENAI_BASE_URL,
   apiKey: OPENAI_API_KEY,
   apiKeysByModel: parseModelApiKeys(OPENAI_IMAGE_MODEL_KEYS),
+  nanoImageProxyUrl: NANO_IMAGE_PROXY_URL,
+  nanoImageModelMap: NANO_IMAGE_MODEL_MAP,
   fastChannelsRaw: GEN_FAST_CHANNELS,
   fastBaseUrl: GEN_FAST_API_BASE_URL,
   fastBaseUrlCn: GEN_FAST_API_BASE_URL_CN,

@@ -43,7 +43,7 @@ export default function Explore() {
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [apiPrompts, setApiPrompts] = useState(null); // null = use merged prompts
   const [apiLoading, setApiLoading] = useState(false);
-  const [apiError, setApiError] = useState(null); // kept for future error display
+  const [apiError, setApiError] = useState(false);
   const debouncedSearch = useDebounce(searchQuery, 400);
   const subcategoryOptions = getSubcategoryOptions(activeCategory);
   const subcategoryItems = subcategoryOptions.map(option => ({
@@ -56,7 +56,6 @@ export default function Explore() {
   const categoryOptions = EXPLORE_CATEGORIES.map(category => ({
     key: category.key,
     label: getExploreCategoryLabel(category, i18n.language),
-    subcategoryCount: Math.max(category.subcategories.length - 1, 0),
   }));
 
   const handleCategoryChange = (categoryKey) => {
@@ -120,15 +119,14 @@ export default function Explore() {
     setApiError(null);
 
     const q = debouncedSearch.trim();
-    // Commercial categories group several legacy storage categories, so the
-    // category filter is applied client-side after the global search.
-    api.getPrompts({ search: q }).then(data => {
+    api.getGeneratedPrompts({ search: q }).then(data => {
       if (cancelled) return;
       const q2 = q.toLowerCase();
       const localMatches = prompts.filter(prompt => {
         const text = [
           prompt?.title,
           prompt?.prompt,
+          prompt?.promptZh,
           ...(Array.isArray(prompt?.tags) ? prompt.tags : []),
           prompt?.category,
           prompt?.author?.name,
@@ -148,13 +146,14 @@ export default function Explore() {
       const fallback = prompts.filter(p =>
         matchesExploreCategory(p, activeCategory) && (
           p.prompt.toLowerCase().includes(q2) ||
+          String(p.promptZh || '').toLowerCase().includes(q2) ||
           p.tags.some(t => t.toLowerCase().includes(q2)) ||
           p.category.toLowerCase().includes(q2) ||
           p.author.name.toLowerCase().includes(q2)
         )
       );
       setApiPrompts(fallback);
-      setApiError(null);
+      setApiError(true);
       setApiLoading(false);
     });
 
@@ -230,7 +229,6 @@ export default function Explore() {
                 tabs={categoryOptions.map(item => ({
                   key: item.key,
                   label: item.label,
-                  count: item.subcategoryCount,
                 }))}
                 active={activeCategory}
                 onChange={handleCategoryChange}
@@ -240,14 +238,6 @@ export default function Explore() {
             </div>
             {subcategoryItems.length > 1 && (
               <div className="explore__subcategory-row">
-                <div className="explore__subcategory-context" aria-hidden="true">
-                  <span className="explore__subcategory-context-label">
-                    {t('explore.filter.label')}
-                  </span>
-                  <strong>{activeLabel}</strong>
-                  <span className="explore__subcategory-context-arrow">→</span>
-                  <span>{t('explore.subcategoryLabel')}</span>
-                </div>
                 <div className="explore__subcategory-tabs">
                   <FilterTabs
                     tabs={subcategoryItems}
@@ -278,6 +268,12 @@ export default function Explore() {
               {t('explore.clearSearch')}
             </button>
           </div>
+        )}
+
+        {apiError && !displayLoading && (
+          <p className="explore__error" role="status">
+            {t('errors.networkError')}
+          </p>
         )}
 
         {/* Results info */}

@@ -14,6 +14,7 @@
 import Database from 'better-sqlite3';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { inferCategoryAndTags as classifyPrompt } from './services/promptTaxonomy.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_FILE   = join(__dirname, 'data/lovioa.db');
@@ -36,28 +37,7 @@ const TAG_RULES = [
 ];
 
 function inferCategoryAndTags(promptText = '') {
-  const text = String(promptText || '');
-  const tags = [];
-  const categoryScores = {};
-  for (const rule of TAG_RULES) {
-    if (rule.re.test(text)) {
-      if (!tags.includes(rule.tag)) tags.push(rule.tag);
-      categoryScores[rule.category] = (categoryScores[rule.category] || 0) + 1;
-    }
-  }
-  // Score-based category selection: highest wins
-  const order = ['Portrait', 'Editorial', 'Fashion', 'Landscape', 'Street', 'Abstract'];
-  let bestCat = 'Abstract', bestScore = 0;
-  for (const cat of order) {
-    if ((categoryScores[cat] || 0) > bestScore) {
-      bestScore = categoryScores[cat];
-      bestCat = cat;
-    }
-  }
-  return {
-    category: bestCat,
-    tags: tags.length ? tags.slice(0, 8) : ['Generated'],
-  };
+  return classifyPrompt(promptText);
 }
 
 // ─── Stats before ─────────────────────────────────────────────────────────────

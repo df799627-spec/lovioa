@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AtSign, Cpu, Image, Layers3, Maximize2, Paperclip, Send, Sparkles, X } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -6,13 +6,16 @@ import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
 import { useLocale } from '../../hooks/useLocale';
 import { trackAction } from '../../services/analytics';
-import { DEFAULT_IMAGE_MODEL, getImageModelConfig, IMAGE_MODEL_OPTIONS } from '../../config/imageModels';
+import {
+  DEFAULT_IMAGE_MODEL,
+  getImageModelConfig,
+  VISIBLE_IMAGE_MODEL_OPTIONS,
+} from '../../config/imageModels';
 import { normalizePromptCategory } from '../../utils/promptCategory';
 import { api } from '../../services/api';
 import { showToast } from '../../App';
 import ComposerSelect from './ComposerSelect';
 import ComposerMentionPicker from './ComposerMentionPicker';
-import GenerateModal from '../GenerateModal/GenerateModal';
 import TryPromptModal from '../TryPromptModal/TryPromptModal';
 import './Hero.css';
 
@@ -20,7 +23,7 @@ const DEFAULT_SIZE = import.meta.env.VITE_OPENAI_IMAGE_SIZE || '1024x1024';
 const DEFAULT_QUALITY = import.meta.env.VITE_OPENAI_IMAGE_QUALITY || 'standard';
 const COMPOSER_IMAGE_SIZES = ['1K', '2K', '4K'];
 const COMPOSER_ASPECT_RATIOS = ['auto', '1:1', '16:9', '9:16', '4:3', '3:4', '21:9'];
-const EDITABLE_MODEL = IMAGE_MODEL_OPTIONS.find(option => option.supportsEdit)?.value || DEFAULT_IMAGE_MODEL;
+const EDITABLE_MODEL = VISIBLE_IMAGE_MODEL_OPTIONS.find(option => option.supportsEdit)?.value || DEFAULT_IMAGE_MODEL;
 
 function getMentionContext(value) {
   const match = /(?:^|\s)@([^\s]*)$/.exec(value);
@@ -35,15 +38,13 @@ function getMentionContext(value) {
 export default function Hero() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { currentUser, prompts, savedIds } = useApp();
+  const { currentUser, prompts, savedIds, registerGenerationJob } = useApp();
   const { image } = useLocale();
 
   const [query, setQuery] = useState('');
   const [retouchImage, setRetouchImage] = useState(null);
   const [retouchImagePreview, setRetouchImagePreview] = useState('');
   const [dragOver, setDragOver] = useState(false);
-  const [showGenerate, setShowGenerate] = useState(false);
-  const [generationParams, setGenerationParams] = useState(null);
   const [composerModel, setComposerModel] = useState(DEFAULT_IMAGE_MODEL);
   const [composerImageSize, setComposerImageSize] = useState('2K');
   const [composerAspectRatio, setComposerAspectRatio] = useState('auto');
@@ -58,7 +59,7 @@ export default function Hero() {
   const fileRef = useRef(null);
   const composerInputRef = useRef(null);
   const savedImagePrompts = prompts.filter(prompt => savedIds.has(prompt.id) && prompt.imageUrl);
-  const composerModelOptions = IMAGE_MODEL_OPTIONS;
+  const composerModelOptions = VISIBLE_IMAGE_MODEL_OPTIONS;
 
   useEffect(() => {
     const handleTryPrompt = (event) => {
@@ -173,17 +174,7 @@ export default function Hero() {
     setComposerModel(hasReference && !getImageModelConfig(value).supportsEdit ? EDITABLE_MODEL : value);
   };
 
-  const handleGenerateClick = (params) => {
-    if (!currentUser) {
-      navigate('/auth', { state: { from: '/' } });
-      return;
-    }
-    setGenerationParams(params);
-    setShowGenerate(true);
-    trackAction('act_generate_start', { source: 'hero', mode: params.mode });
-  };
-
-  const handleTryQueueSubmit = async (prompt) => {
+  const handleQueueSubmit = async (prompt) => {
     if (!currentUser) {
       navigate('/auth', { state: { from: '/' } });
       return;
@@ -230,8 +221,9 @@ export default function Hero() {
       const jobResponse = await api.createGenJob(jobPayload);
       const jobId = jobResponse?.job?.id || jobResponse?.id;
       if (!jobId) throw new Error(t('hero.queueError'));
+      registerGenerationJob(jobResponse?.job || jobResponse);
 
-      trackAction('act_try_queue_success', { mode, model, category: inferredCategory });
+      trackAction('act_queue_success', { mode, model, category: inferredCategory });
       showToast(t('hero.queueToast'), 'success');
       setTryComposerOpen(false);
       setQuery('');
@@ -245,7 +237,7 @@ export default function Hero() {
         navigate('/auth', { state: { from: '/' } });
       } else {
         setTryQueueError(err.message || t('hero.queueError'));
-        trackAction('act_try_queue_fail', {
+        trackAction('act_queue_fail', {
           mode,
           model,
           category: inferredCategory,
@@ -262,37 +254,12 @@ export default function Hero() {
     const prompt = query.trim();
     if (!prompt && !retouchImage && !composerMention) return;
 
-    if (tryComposerOpen) {
-      await handleTryQueueSubmit(prompt);
-      return;
-    }
-
-    if (retouchImage || composerMention) {
-      handleGenerateClick({
-        mode: 'edit',
-        prompt,
-        image: retouchImage,
-        referenceImageUrl: composerMention?.imageUrl || '',
-        model: composerModel,
-        aspectRatio: composerAspectRatio,
-        imageSize: composerImageSize,
-      });
-      return;
-    }
-
-    navigate(`/?search=${encodeURIComponent(prompt)}`);
+    await handleQueueSubmit(prompt);
   };
-
-  const handleGenerateSuccess = useCallback(() => {
-    setShowGenerate(false);
-    showToast(t('hero.successToast'), 'success');
-  }, [t]);
 
   const heroBg = image('hero/bg');
   const hasComposerContent = Boolean(query.trim() || retouchImage || composerMention);
-  const composerSubmitLabel = tryComposerOpen
-    ? (isQueueingTry ? t('hero.queueing') : t('hero.queueBtn'))
-    : (retouchImage || composerMention ? t('hero.generateBtn') : t('hero.sendBtn'));
+  const composerSubmitLabel = isQueueingTry ? t('hero.queueing') : t('hero.generateBtn');
   const composerImageSizeOptions = COMPOSER_IMAGE_SIZES.map(value => ({ value, label: value }));
   const composerAspectRatioOptions = COMPOSER_ASPECT_RATIOS.map(value => ({
     value,
@@ -460,7 +427,7 @@ export default function Hero() {
                     renderOption={option => (
                       <span className="hero__composer-model-option">
                         <strong>{option?.shortLabel || option?.label}</strong>
-                        <small>{option?.modelName || option?.value}</small>
+                        <small>{option?.capability}</small>
                       </span>
                     )}
                   />
@@ -547,24 +514,6 @@ export default function Hero() {
         />
       )}
 
-      {showGenerate && (
-        <GenerateModal
-          initialPrompt={generationParams?.prompt || ''}
-          initialMode={generationParams?.mode || 'text'}
-          initialImage={generationParams?.image || null}
-          initialReferenceImageUrl={generationParams?.referenceImageUrl || ''}
-          initialModel={generationParams?.model || composerModel}
-          initialInstruction={generationParams?.prompt || ''}
-          initialAspectRatio={generationParams?.aspectRatio || '1:1'}
-          initialImageSize={generationParams?.imageSize || '1K'}
-          autoCloseOnSuccess
-          onSuccess={handleGenerateSuccess}
-          onClose={() => {
-            setShowGenerate(false);
-            setGenerationParams(null);
-          }}
-        />
-      )}
     </section>
   );
 }

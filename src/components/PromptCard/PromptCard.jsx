@@ -10,13 +10,14 @@ import './PromptCard.css';
 
 export default function PromptCard({ prompt, index = 0, compact = false }) {
   const { likedIds, savedIds, toggleLike, toggleSave } = useApp();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const liked = likedIds.has(prompt.id);
   const saved = savedIds.has(prompt.id);
   const [copied, setCopied] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
-  const isFeatured = index % 5 === 0;
   const isGenerated = prompt.category === 'Generated';
+  const isChinese = (i18n.resolvedLanguage || i18n.language || '').toLowerCase().startsWith('zh');
+  const displayPrompt = isChinese ? (prompt.promptZh || prompt.prompt) : prompt.prompt;
   const cardTitle = prompt.title || prompt.tags?.slice(0, 2).join(' · ') || prompt.category;
 
   const handleCopy = (e) => {
@@ -34,7 +35,7 @@ export default function PromptCard({ prompt, index = 0, compact = false }) {
     e.stopPropagation();
     window.dispatchEvent(new CustomEvent('__prompt_try__', {
       detail: {
-        prompt: `参考@图一的画面构图和色调风格，${prompt.prompt}，avoid：`,
+        prompt: prompt.prompt,
       },
     }));
   };
@@ -46,8 +47,12 @@ export default function PromptCard({ prompt, index = 0, compact = false }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: (index % 5) * 0.07 }}
     >
-      <Link to={`/prompt/${prompt.id}`} className="prompt-card__link">
-        <div className="prompt-card__image-wrap">
+      <div className="prompt-card__image-wrap">
+        <Link
+          to={`/prompt/${prompt.id}`}
+          className="prompt-card__image-link"
+          aria-label={t('promptCard.viewPrompt')}
+        >
           {!imgFailed && (
             <img
               src={prompt.imageUrl}
@@ -63,114 +68,114 @@ export default function PromptCard({ prompt, index = 0, compact = false }) {
             </div>
           )}
           {isGenerated && (
-            <div className="prompt-grid__featured-label">Generated</div>
+            <div className="prompt-grid__featured-label">{t('promptCard.generated')}</div>
           )}
-          {isFeatured && !isGenerated && (
-            <div className="prompt-grid__featured-label">{t('promptCard.featured')}</div>
-          )}
+        </Link>
 
-          {/* Hover overlay */}
-          <div className="prompt-card__overlay">
-            <div className="prompt-card__overlay-content">
-              <p className="prompt-card__prompt-text">{prompt.prompt}</p>
-              <div className="prompt-card__overlay-actions">
-                <ShareButton
-                  url={`/prompt/${prompt.id}`}
-                  title={`${prompt.prompt.slice(0, 80)}...`}
-                />
-                <button
-                  className={`prompt-card__action-btn ${copied ? 'copied' : ''}`}
-                  onClick={handleCopy}
-                  title={t('promptCard.copyPrompt')}
-                >
-                  {copied ? <Check size={13} /> : <Copy size={13} />}
-                  <span>{copied ? t('promptCard.copied') : t('promptCard.copy')}</span>
-                </button>
-                <button
-                  type="button"
-                  className="prompt-card__try-btn"
-                  onClick={handleTry}
-                >
-                  {t('promptCard.tryThis')} →
-                </button>
-              </div>
+        {/* Keep controls outside the detail link so interactive elements are valid. */}
+        <div className="prompt-card__overlay">
+          <div className="prompt-card__overlay-content">
+            <p className="prompt-card__prompt-text">{displayPrompt}</p>
+            <div className="prompt-card__overlay-actions">
+              <ShareButton
+                url={`/prompt/${prompt.id}`}
+                title={`${displayPrompt.slice(0, 80)}...`}
+              />
+              <button
+                type="button"
+                className={`prompt-card__action-btn ${copied ? 'copied' : ''}`}
+                onClick={handleCopy}
+                title={t('promptCard.copyPrompt')}
+              >
+                {copied ? <Check size={13} /> : <Copy size={13} />}
+                <span>{copied ? t('promptCard.copied') : t('promptCard.copy')}</span>
+              </button>
+              <button
+                type="button"
+                className="prompt-card__try-btn"
+                onClick={handleTry}
+              >
+                {t('promptCard.tryThis')} →
+              </button>
             </div>
           </div>
         </div>
+      </div>
 
-        {compact && (
+      {compact && (
+        <Link to={`/prompt/${prompt.id}`} className="prompt-card__content-link">
           <div className="prompt-card__content">
             <strong className="prompt-card__title">{cardTitle}</strong>
-            <p className="prompt-card__excerpt">{prompt.prompt}</p>
+            <p className="prompt-card__excerpt">{displayPrompt}</p>
           </div>
-        )}
+        </Link>
+      )}
 
-        {/* Card footer */}
-        <div className="prompt-card__footer">
-          <div className="prompt-card__author">
-            {prompt.author.userId ? (
-              <Link
-                to={`/profile/${prompt.author.userId}`}
-                className="prompt-card__author-link"
-                onClick={e => e.stopPropagation()}
-              >
-                <img
-                  src={prompt.author.avatar}
-                  alt={prompt.author.name}
-                  className="prompt-card__avatar"
-                />
-              </Link>
-            ) : (
+      {/* Card footer */}
+      <div className="prompt-card__footer">
+        <div className="prompt-card__author">
+          {prompt.author.userId ? (
+            <Link
+              to={`/profile/${prompt.author.userId}`}
+              className="prompt-card__author-link"
+            >
               <img
                 src={prompt.author.avatar}
                 alt={prompt.author.name}
                 className="prompt-card__avatar"
               />
-            )}
-            <div className="prompt-card__author-info">
-              {prompt.author.userId ? (
-                <Link
-                  to={`/profile/${prompt.author.userId}`}
-                  className="prompt-card__author-link"
-                  onClick={e => e.stopPropagation()}
-                >
-                  <span className="prompt-card__author-name">{prompt.author.name}</span>
-                </Link>
-              ) : (
+            </Link>
+          ) : (
+            <img
+              src={prompt.author.avatar}
+              alt={prompt.author.name}
+              className="prompt-card__avatar"
+            />
+          )}
+          <div className="prompt-card__author-info">
+            {prompt.author.userId ? (
+              <Link
+                to={`/profile/${prompt.author.userId}`}
+                className="prompt-card__author-link"
+              >
                 <span className="prompt-card__author-name">{prompt.author.name}</span>
-              )}
-              <span className="prompt-card__category">{prompt.category}</span>
-            </div>
-          </div>
-          <div className="prompt-card__actions">
-            <button
-              className={`prompt-card__action ${liked ? 'liked' : ''}`}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                toggleLike(prompt.id);
-                trackAction('act_like', { promptId: prompt.id });
-              }}
-              aria-label={liked ? t('promptCard.unlike') : t('promptCard.like')}
-            >
-              <Heart size={13} fill={liked ? 'currentColor' : 'none'} />
-              <span>{prompt.likes.toLocaleString()}</span>
-            </button>
-            <button
-              className={`prompt-card__action ${saved ? 'saved' : ''}`}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                toggleSave(prompt.id);
-                trackAction('act_save', { promptId: prompt.id });
-              }}
-              aria-label={saved ? t('promptCard.unsave') : t('promptCard.save')}
-            >
-              <Bookmark size={13} fill={saved ? 'currentColor' : 'none'} />
-            </button>
+              </Link>
+            ) : (
+              <span className="prompt-card__author-name">{prompt.author.name}</span>
+            )}
+            <span className="prompt-card__category">{prompt.category}</span>
           </div>
         </div>
-      </Link>
+        <div className="prompt-card__actions">
+          <button
+            type="button"
+            className={`prompt-card__action ${liked ? 'liked' : ''}`}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              toggleLike(prompt.id);
+              trackAction('act_like', { promptId: prompt.id });
+            }}
+            aria-label={liked ? t('promptCard.unlike') : t('promptCard.like')}
+          >
+            <Heart size={13} fill={liked ? 'currentColor' : 'none'} />
+            <span>{prompt.likes.toLocaleString()}</span>
+          </button>
+          <button
+            type="button"
+            className={`prompt-card__action ${saved ? 'saved' : ''}`}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              toggleSave(prompt.id);
+              trackAction('act_save', { promptId: prompt.id });
+            }}
+            aria-label={saved ? t('promptCard.unsave') : t('promptCard.save')}
+          >
+            <Bookmark size={13} fill={saved ? 'currentColor' : 'none'} />
+          </button>
+        </div>
+      </div>
     </motion.div>
   );
 }

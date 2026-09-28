@@ -1,5 +1,6 @@
-const DEFAULT_BASE_URL = 'https://api.deepseek.com/v1';
-const DEFAULT_MODEL = 'deepseek-chat';
+const DEFAULT_BASE_URL = 'https://d1api.xin/v1';
+const DEFAULT_MODEL = 'deepseek-v4.1-flash';
+import { inferCategoryAndTags } from './promptTaxonomy.js';
 
 const TAXONOMY = {
   categories: [
@@ -54,47 +55,17 @@ function safeParseModelJson(raw) {
   return null;
 }
 
-const CATEGORY_KEYWORDS = [
-  { category: 'Portrait', keywords: ['portrait', 'headshot', 'beauty', 'selfie', '人像', '肖像', '写真', '特写'] },
-  { category: 'Fashion', keywords: ['fashion', 'runway', 'lookbook', 'outfit', '时尚', '穿搭', '服装'] },
-  { category: 'Editorial', keywords: ['editorial', 'magazine', 'cover', '杂志', '封面'] },
-  { category: 'Landscape', keywords: ['landscape', 'mountain', 'forest', 'ocean', 'sunset', '风景', '山', '海', '森林'] },
-  { category: 'Street', keywords: ['street', 'urban', 'city', 'neon', '街头', '城市', '霓虹'] },
-  { category: 'Architecture', keywords: ['architecture', 'interior', 'building', '建筑', '室内', '空间'] },
-  { category: 'Ecommerce', keywords: ['ecommerce', 'product', 'listing', '商品', '电商', '产品图'] },
-  { category: 'Food', keywords: ['food', 'dessert', 'coffee', 'restaurant', '美食', '甜点', '饮品'] },
-  { category: 'Travel', keywords: ['travel', 'destination', 'vacation', '旅行', '旅拍', '度假'] },
-  { category: 'Gaming', keywords: ['game', 'gaming', 'rpg', 'sprite', 'character', '游戏', '角色', '立绘'] },
-  { category: 'UIDesign', keywords: ['ui', 'ux', 'dashboard', 'mockup', '界面', '设计稿'] },
-  { category: 'Brand', keywords: ['brand', 'branding', 'logo', '品牌', '标识'] },
-  { category: 'Illustration', keywords: ['illustration', 'drawing', 'manga', '插画', '手绘'] },
-  { category: 'SocialMedia', keywords: ['social media', 'instagram', 'tiktok', '小红书', '抖音'] },
-  { category: 'Avatar', keywords: ['avatar', 'pfp', 'profile picture', '头像'] },
-  { category: 'Abstract', keywords: ['abstract', 'surreal', 'geometric', '抽象', '超现实'] },
-];
-
 function inferCategoryFallback({ prompt = '', tags = [] } = {}) {
-  const text = `${String(prompt || '')} ${(Array.isArray(tags) ? tags.join(' ') : '')}`.toLowerCase();
-  let bestCategory = 'Generated';
-  let bestScore = 0;
-  for (const rule of CATEGORY_KEYWORDS) {
-    let score = 0;
-    for (const keyword of rule.keywords) {
-      if (text.includes(String(keyword).toLowerCase())) score += 1;
-    }
-    if (score > bestScore) {
-      bestScore = score;
-      bestCategory = rule.category;
-    }
-  }
-  return bestCategory;
+  return inferCategoryAndTags(
+    `${String(prompt || '')} ${(Array.isArray(tags) ? tags.join(' ') : '')}`,
+  ).category;
 }
 
 export async function tagPromptBatchWithDeepSeek(items, options = {}) {
-  const apiKey = String(options.apiKey || process.env.DEEPSEEK_API_KEY || '').trim();
-  if (!apiKey) throw new Error('DEEPSEEK_API_KEY is missing');
-  const baseUrl = String(options.baseUrl || process.env.DEEPSEEK_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, '');
-  const model = String(options.model || process.env.DEEPSEEK_TAG_MODEL || DEFAULT_MODEL);
+  const apiKey = String(options.apiKey || process.env.PROMPT_TEXT_API_KEY || process.env.DEEPSEEK_API_KEY || '').trim();
+  if (!apiKey) throw new Error('PROMPT_TEXT_API_KEY is missing');
+  const baseUrl = String(options.baseUrl || process.env.PROMPT_TEXT_BASE_URL || process.env.DEEPSEEK_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, '');
+  const model = String(options.model || process.env.PROMPT_TEXT_MODEL || process.env.DEEPSEEK_TAG_MODEL || DEFAULT_MODEL);
 
   if (!Array.isArray(items) || items.length === 0) return [];
 

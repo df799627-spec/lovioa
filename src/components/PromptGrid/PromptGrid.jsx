@@ -1,8 +1,11 @@
 import PromptCard from '../PromptCard/PromptCard';
 import SkeletonCard from '../SkeletonCard/SkeletonCard';
+import { useTranslation } from 'react-i18next';
 import './PromptGrid.css';
 
 export default function PromptGrid({ prompts, loading }) {
+  const { t } = useTranslation();
+
   if (loading) {
     return (
       <div className="prompt-grid">
@@ -24,8 +27,8 @@ export default function PromptGrid({ prompts, loading }) {
             <rect x="26" y="26" width="16" height="16" rx="3" stroke="var(--color-border)" strokeWidth="2"/>
           </svg>
         </div>
-        <h3 className="prompt-grid-empty__title">No prompts found</h3>
-        <p className="prompt-grid-empty__text">Be the first to share a stunning AI photography prompt in this category.</p>
+        <h3 className="prompt-grid-empty__title">{t('explore.empty.title')}</h3>
+        <p className="prompt-grid-empty__text">{t('explore.empty.text')}</p>
       </div>
     );
   }

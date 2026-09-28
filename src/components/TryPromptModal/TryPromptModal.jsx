@@ -172,7 +172,7 @@ export default function TryPromptModal({
                 renderOption={option => (
                   <span className="hero__composer-model-option">
                     <strong>{option?.shortLabel || option?.label}</strong>
-                    <small>{option?.modelName || option?.value}</small>
+                    <small>{option?.capability}</small>
                   </span>
                 )}
               />

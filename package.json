@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "content:build": "node scripts/build-commercial-prompts.mjs",
+    "redeem:import": "node scripts/import-redeem-cards.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },

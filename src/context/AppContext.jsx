@@ -1,9 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { api } from '../services/api';
-import { PROMPTS as LEGACY_SEED_PROMPTS } from '../data/prompts';
+import { api, filterRealGeneratedPrompts } from '../services/api';
 import { COMMERCIAL_PROMPTS } from '../data/commercialPrompts.generated';
-
-const SEED_PROMPTS = [...LEGACY_SEED_PROMPTS, ...COMMERCIAL_PROMPTS];
 
 const AppContext = createContext(null);
 
@@ -35,7 +32,6 @@ function removeLS(key) {
   try { localStorage.removeItem(key); } catch {}
 }
 
-// ── Seed prompt deduplication ────────────────────────────────────────────────
 function dedupePrompts(items = []) {
   const byKey = new Map();
   for (const item of items) {
@@ -46,13 +42,19 @@ function dedupePrompts(items = []) {
   return [...byKey.values()];
 }
 
-function mergePrompts(seedPrompts, userPrompts, savedIds, likedIds) {
+function filterLegacyCommercialPrompts(items = []) {
+  return (Array.isArray(items) ? items : [])
+    .filter(prompt => !String(prompt?.id || '').startsWith('commercial-'));
+}
+
+function mergePrompts(sourcePrompts, userPrompts, savedIds, likedIds) {
   const savedSet = new Set(savedIds);
   const likedSet = new Set(likedIds);
+  const safeUserPrompts = filterLegacyCommercialPrompts(userPrompts);
 
   const merged = [
-    ...userPrompts.map(p => ({ ...p, saved: savedSet.has(p.id), liked: likedSet.has(p.id) })),
-    ...seedPrompts.filter(sp => !userPrompts.find(up => up.id === sp.id))
+    ...safeUserPrompts.map(p => ({ ...p, saved: savedSet.has(p.id), liked: likedSet.has(p.id) })),
+    ...sourcePrompts.filter(sp => !safeUserPrompts.find(up => up.id === sp.id))
       .map(p => ({ ...p, saved: savedSet.has(p.id), liked: likedSet.has(p.id) })),
   ];
   return dedupePrompts(merged);
@@ -94,21 +96,23 @@ export function AppProvider({ children }) {
     const rawPrompts = loadLS(LS_KEYS.PROMPTS, null);
     const savedPrompts = Array.isArray(rawPrompts) ? rawPrompts : [];
     const rawUserPrompts = loadLS(LS_KEYS.USER_PROMPTS, null);
-    const userPrompts = Array.isArray(rawUserPrompts) ? rawUserPrompts : [];
+    const userPrompts = filterLegacyCommercialPrompts(rawUserPrompts);
     const rawSavedIds = loadLS(LS_KEYS.SAVED_IDS, null);
     const savedIds = Array.isArray(rawSavedIds) ? rawSavedIds : [];
     const rawLikedIds = loadLS(LS_KEYS.LIKED_IDS, null);
     const likedIds = Array.isArray(rawLikedIds) ? rawLikedIds : [];
-    if (savedPrompts.length > 0) {
-      return mergePrompts([...savedPrompts, ...COMMERCIAL_PROMPTS], userPrompts, savedIds, likedIds);
-    }
-    return mergePrompts(SEED_PROMPTS, userPrompts, savedIds, likedIds);
+    return mergePrompts(
+      [...filterRealGeneratedPrompts(savedPrompts), ...COMMERCIAL_PROMPTS],
+      userPrompts,
+      savedIds,
+      likedIds,
+    );
   });
   const [stats, setStats] = useState(() => {
     const rawStats = loadLS(LS_KEYS.STATS, null);
     if (rawStats && typeof rawStats === 'object') return rawStats;
     return {
-      promptsShared: Array.isArray(SEED_PROMPTS) ? SEED_PROMPTS.length : 0,
+      promptsShared: 0,
       imagesGenerated: 0,
       communitySize: 0,
     };
@@ -122,7 +126,10 @@ export function AppProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [authReady, setAuthReady] = useState(() => !token);
   const [generationHistory, setGenerationHistory] = useState(() => loadLS(LS_KEYS.HISTORY, null) || []);
-  const [userPrompts, setUserPrompts] = useState(() => loadLS(LS_KEYS.USER_PROMPTS, null) || []);
+  const [generationJobs, setGenerationJobs] = useState([]);
+  const [userPrompts, setUserPrompts] = useState(() => (
+    filterLegacyCommercialPrompts(loadLS(LS_KEYS.USER_PROMPTS, null))
+  ));
 
   // ── Billing state ─────────────────────────────────────────────────────────
   const [credits, setCredits] = useState(0);
@@ -140,7 +147,9 @@ export function AppProvider({ children }) {
     else removeLS(LS_KEYS.TOKEN);
   }, [token]);
   useEffect(() => { saveLS(LS_KEYS.HISTORY, generationHistory); }, [generationHistory]);
-  useEffect(() => { saveLS(LS_KEYS.USER_PROMPTS, userPrompts); }, [userPrompts]);
+  useEffect(() => {
+    saveLS(LS_KEYS.USER_PROMPTS, filterLegacyCommercialPrompts(userPrompts));
+  }, [userPrompts]);
 
   // A cached user is only a display hint. Validate the persisted token once
   // before treating the session as authenticated.
@@ -190,14 +199,14 @@ export function AppProvider({ children }) {
     saveLS(LS_KEYS.API_KEY, key);
   }, []);
 
-  // ── Load prompts from API (with local fallback) ────────────────────────────
+  // ── Load prompts from API ─────────────────────────────────────────────────
   const loadPrompts = useCallback(async (params = {}) => {
     setLoading(true);
     setError(null);
     try {
-      const [data, statsData] = await Promise.all([api.getPrompts(params), api.getStats()]);
+      const [data, statsData] = await Promise.all([api.getGeneratedPrompts(params), api.getStats()]);
 
-      const up = loadLS(LS_KEYS.USER_PROMPTS, []);
+      const up = filterLegacyCommercialPrompts(loadLS(LS_KEYS.USER_PROMPTS, []));
       const merged = mergePrompts(
         [...(data.prompts || []), ...COMMERCIAL_PROMPTS],
         up,
@@ -207,14 +216,18 @@ export function AppProvider({ children }) {
 
       setPrompts(merged);
       setStats(statsData);
-      saveLS(LS_KEYS.PROMPTS, dedupePrompts([...(data.prompts || []), ...COMMERCIAL_PROMPTS]));
+      saveLS(LS_KEYS.PROMPTS, filterRealGeneratedPrompts(data.prompts || []));
       saveLS(LS_KEYS.STATS, statsData);
     } catch (err) {
-      // Network failure — keep using cached prompts
       setError(err.message);
-      const up = loadLS(LS_KEYS.USER_PROMPTS, []);
-      const cached = dedupePrompts(loadLS(LS_KEYS.PROMPTS, SEED_PROMPTS));
-      const merged = mergePrompts(cached, up, [...savedIds], [...likedIds]);
+      const up = filterLegacyCommercialPrompts(loadLS(LS_KEYS.USER_PROMPTS, []));
+      const cached = filterRealGeneratedPrompts(loadLS(LS_KEYS.PROMPTS, []));
+      const merged = mergePrompts(
+        [...cached, ...COMMERCIAL_PROMPTS],
+        up,
+        [...savedIds],
+        [...likedIds],
+      );
       setPrompts(merged);
     } finally {
       setLoading(false);
@@ -234,6 +247,41 @@ export function AppProvider({ children }) {
   }, [currentUser]);
 
   useEffect(() => { loadHistory(); }, [loadHistory]);
+
+  // Keep the small queue indicator in sync without opening a generation modal.
+  useEffect(() => {
+    let cancelled = false;
+
+    const syncGenerationJobs = async () => {
+      if (!currentUser?.id) {
+        setGenerationJobs([]);
+        return;
+      }
+
+      try {
+        const [jobsData, historyData] = await Promise.all([
+          api.listGenJobs({ limit: 50 }),
+          api.getHistory(currentUser.id),
+        ]);
+        const activeJobs = (jobsData.jobs || []).filter(job => (
+          job.status === 'queued' || job.status === 'running'
+        ));
+        if (!cancelled) {
+          setGenerationJobs(activeJobs);
+          setGenerationHistory(historyData.history || []);
+        }
+      } catch {
+        // Keep the last known count when a background refresh is unavailable.
+      }
+    };
+
+    syncGenerationJobs();
+    const timer = window.setInterval(syncGenerationJobs, 4000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [currentUser]);
 
   // ── Toggle like ───────────────────────────────────────────────────────────
   const toggleLike = useCallback(async (id) => {
@@ -320,6 +368,14 @@ export function AppProvider({ children }) {
       const next = [newEntry, ...prev].filter(h => h.id !== newEntry.id).slice(0, MAX_HISTORY);
       return next;
     });
+  }, []);
+
+  const registerGenerationJob = useCallback((job) => {
+    if (!job?.id || !['queued', 'running'].includes(job.status || 'queued')) return;
+    setGenerationJobs(prev => [
+      job,
+      ...prev.filter(existing => existing.id !== job.id),
+    ]);
   }, []);
 
   const removeFromHistory = useCallback((id) => {
@@ -459,6 +515,8 @@ export function AppProvider({ children }) {
     savedIds,
     likedIds,
     generationHistory,
+    generationJobs,
+    generationQueueCount: generationJobs.length,
     userPrompts,
 
     // Auth
@@ -484,6 +542,7 @@ export function AppProvider({ children }) {
     toggleLike,
     toggleSave,
     addToHistory,
+    registerGenerationJob,
     removeFromHistory,
     clearHistory,
     addUserPrompt,

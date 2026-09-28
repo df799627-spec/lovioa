@@ -65,7 +65,9 @@
 
 /* ── Responsive breakpoints ─────────────────────────────── */
 
-@media (max-width: 1024px) {
+/* Keep four columns on desktop-sized viewports. The old 1024px breakpoint
+   made browser zoom and slightly narrower desktop windows drop to three. */
+@media (max-width: 768px) {
   .prompt-grid {
     column-count: 3;
   }

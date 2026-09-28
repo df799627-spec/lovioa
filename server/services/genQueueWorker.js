@@ -17,6 +17,12 @@ import { v4 as uuidv4 } from 'uuid';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
 
+const DEFAULT_NANO_IMAGE_MODEL_MAP = Object.freeze({
+  'gemini-3-pro-image': 'gpt-image-gemini-3-pro-image',
+  'gemini-3.1-flash-image': 'gpt-image-gemini-3.1-flash-image',
+  'image-gemini-3-pro-image': 'gpt-image-gemini-3-pro-image',
+});
+
 // Cloud storage: lazily import and detect config at runtime (supports S4 and R2)
 let _cloudStorage = null;
 
@@ -97,6 +103,69 @@ function openAiApiUrl(baseUrl, pathname) {
   const versionedBase = /\/v1$/i.test(base) ? base : `${base}/v1`;
   const pathPart = String(pathname || '').startsWith('/') ? pathname : `/${pathname}`;
   return `${versionedBase}${pathPart}`;
+}
+
+function openAiCompatibleBaseUrl(baseUrl) {
+  const base = String(baseUrl || '').trim().replace(/\/+$/, '');
+  return /\/v1$/i.test(base) ? base : `${base}/v1`;
+}
+
+function normalizeNanoImageModelMap(modelMap) {
+  const source = modelMap && typeof modelMap === 'object' ? modelMap : {};
+  return {
+    ...DEFAULT_NANO_IMAGE_MODEL_MAP,
+    ...Object.fromEntries(
+      Object.entries(source)
+        .map(([model, providerModel]) => [String(model).trim(), String(providerModel || '').trim()])
+        .filter(([model, providerModel]) => model && providerModel),
+    ),
+  };
+}
+
+function nanoImageSize(job) {
+  const ratio = String(job?.generationOptions?.aspectRatio || '').trim();
+  const sizeByRatio = {
+    '1:1': '1024x1024',
+    '16:9': '1536x1024',
+    '9:16': '1024x1536',
+    '3:2': '1536x1024',
+    '2:3': '1024x1536',
+    '4:3': '1536x1024',
+    '3:4': '1024x1536',
+  };
+  return sizeByRatio[ratio] || job?.size || '1024x1024';
+}
+
+async function callNanoImageGeneration({ proxyUrl, upstreamBaseUrl, apiKey, providerModel, job, signal }) {
+  if (job.mode === 'edit' && job.referenceImageUrl) {
+    throw new Error('Nano Banana does not support image editing through the configured provider');
+  }
+
+  const response = await fetch(String(proxyUrl || '').trim(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      baseUrl: openAiCompatibleBaseUrl(upstreamBaseUrl),
+      apiKey,
+      model: providerModel,
+      prompt: buildEnhancedPrompt(job),
+      size: nanoImageSize(job),
+    }),
+    signal,
+  });
+  const text = await response.text();
+  const data = safeJson(text) || {};
+  if (!response.ok) {
+    throw Object.assign(
+      new Error(`Nano provider HTTP ${response.status}: ${text.slice(0, 500)}`),
+      { status: response.status, body: text },
+    );
+  }
+
+  const first = data?.images?.[0] || data?.data?.[0] || {};
+  return first.url
+    || (first.b64_json ? `data:image/png;base64,${first.b64_json}` : '')
+    || '';
 }
 
 function normalizeCsvSet(value) {
@@ -598,7 +667,42 @@ function releaseFastProviderSlot(runtime, providerName) {
   state.running = Math.max(0, state.running - 1);
 }
 
-async function callImageGeneration({ slowProvider, fastProviders, fastProviderRuntime, routing, job, signal, logger }) {
+async function callImageGeneration({
+  slowProvider,
+  nanoProvider,
+  fastProviders,
+  fastProviderRuntime,
+  routing,
+  job,
+  signal,
+  logger,
+}) {
+  const nanoProviderModel = nanoProvider.modelMap[String(job.model || '').trim()];
+  if (nanoProviderModel) {
+    if (!nanoProvider.enabled) {
+      throw new Error('Nano image provider is not configured');
+    }
+    const modelApiKey = nanoProvider.apiKeysByModel[String(job.model || '').trim()];
+    if (!modelApiKey) {
+      throw new Error(`No Nano API key configured for model ${job.model || 'unknown'}`);
+    }
+    const imageUrl = await callNanoImageGeneration({
+      proxyUrl: nanoProvider.proxyUrl,
+      upstreamBaseUrl: nanoProvider.upstreamBaseUrl,
+      apiKey: modelApiKey,
+      providerModel: nanoProviderModel,
+      job,
+      signal,
+    });
+    if (!imageUrl) throw new Error('Nano provider returned no image');
+    return {
+      imageUrl,
+      provider: 'nano',
+      providerName: 'code2alita-nano',
+      sourceChannel: 'code2alita-nano',
+    };
+  }
+
   const providers = pickFastProviders(job, fastProviders, routing);
 
   if (providers.length > 0) {
@@ -756,6 +860,8 @@ export function startGenQueueWorker({
   baseUrl,
   apiKey,
   apiKeysByModel = {},
+  nanoImageProxyUrl = '',
+  nanoImageModelMap = DEFAULT_NANO_IMAGE_MODEL_MAP,
 
   // Optional fast provider
   fastChannelsRaw = '',
@@ -790,6 +896,22 @@ export function startGenQueueWorker({
         .map(([model, key]) => [String(model).trim(), String(key || '').trim()])
         .filter(([model, key]) => model && key),
     ),
+  };
+
+  const nanoProvider = {
+    enabled: Boolean(
+      nanoImageProxyUrl
+      && baseUrl
+      && Object.keys(apiKeysByModel || {}).length > 0,
+    ),
+    proxyUrl: String(nanoImageProxyUrl || '').trim(),
+    upstreamBaseUrl: String(baseUrl || '').trim(),
+    apiKeysByModel: Object.fromEntries(
+      Object.entries(apiKeysByModel || {})
+        .map(([model, key]) => [String(model).trim(), String(key || '').trim()])
+        .filter(([model, key]) => model && key),
+    ),
+    modelMap: normalizeNanoImageModelMap(nanoImageModelMap),
   };
 
   const fastProviders = parseFastChannels(fastChannelsRaw, {
@@ -887,6 +1009,7 @@ export function startGenQueueWorker({
         providerName = '',
       } = await callImageGeneration({
         slowProvider,
+        nanoProvider,
         fastProviders,
         fastProviderRuntime,
         routing,
@@ -926,7 +1049,7 @@ export function startGenQueueWorker({
         mode: job.mode,
         userId: job.userId || null,
         jobId: job.id,
-        category: job.heartbeatCategory || '',
+        category: job.category || job.heartbeatCategory || '',
         publishToPrompts: !!job.publishToPrompts,
       });
 

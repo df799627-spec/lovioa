@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
 import { api } from '../../services/api';
-import { BILLING_PLANS } from '../../config/billingPlans';
+import { BILLING_PLANS, CREDITS_PER_IMAGE } from '../../config/billingPlans';
 import './Balance.css';
 
 function normalizeCredits(raw) {
@@ -71,6 +71,10 @@ export default function Balance() {
     setLoading(true);
     setError('');
     try {
+      if (selectedPackage.domesticPaymentUrl) {
+        window.location.assign(selectedPackage.domesticPaymentUrl);
+        return;
+      }
       const data = await api.billingCheckout(selectedPlan);
       if (data.url) {
         window.location.href = data.url;
@@ -106,7 +110,12 @@ export default function Balance() {
               <div className="balance-card__label">{t('balance.currentCredits')}</div>
               <div className="balance-card__amount">
                 {balance.toLocaleString()}
-                <span className="balance-card__unit"> {t('balance.images')}</span>
+                <span className="balance-card__unit"> {t('balance.points')}</span>
+              </div>
+              <div className="balance-card__equivalent">
+                {t('balance.imageEquivalent', {
+                  count: Math.floor(balance / CREDITS_PER_IMAGE).toLocaleString(),
+                })}
               </div>
             </div>
             <button className="balance-card__refresh" onClick={loadBalance} title={t('balance.refresh')}>
@@ -137,7 +146,9 @@ export default function Balance() {
               >
                 <span className="balance-page__amount-label">¥{plan.price / 100}</span>
                 <span className="balance-page__amount-credits">
-                  {plan.credits.toLocaleString()} {t('balance.images')}
+                  {plan.credits.toLocaleString()} {t('balance.points')}
+                  {' · '}
+                  {t('balance.imageEquivalent', { count: plan.fastCredits.toLocaleString() })}
                 </span>
               </button>
             ))}
@@ -169,6 +180,7 @@ export default function Balance() {
               </>
             )}
           </button>
+          <p className="balance-page__payment-hint">{t('subscribe.domesticPaymentHint')}</p>
         </div>
 
         <div className="balance-page__info-grid">

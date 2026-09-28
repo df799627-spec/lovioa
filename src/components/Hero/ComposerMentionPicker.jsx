@@ -1,4 +1,5 @@
 import { Bookmark, Search } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export default function ComposerMentionPicker({
   items,
@@ -7,11 +8,13 @@ export default function ComposerMentionPicker({
   emptyLabel,
   hintLabel,
 }) {
+  const { i18n } = useTranslation();
+  const isChinese = (i18n.resolvedLanguage || i18n.language || '').toLowerCase().startsWith('zh');
   const normalizedQuery = query.trim().toLowerCase();
   const filteredItems = items
     .filter(item => {
       if (!normalizedQuery) return true;
-      return [item.prompt, item.category, item.author?.username, item.author?.name]
+      return [item.prompt, item.promptZh, item.category, item.author?.username, item.author?.name]
         .filter(Boolean)
         .some(value => String(value).toLowerCase().includes(normalizedQuery));
     })
@@ -45,7 +48,7 @@ export default function ComposerMentionPicker({
               <img src={item.imageUrl} alt="" className="hero__mention-picker-thumb" />
               <span className="hero__mention-picker-copy">
                 <strong>{item.category || 'Saved image'}</strong>
-                <span>{item.prompt || 'Untitled prompt'}</span>
+                <span>{isChinese ? (item.promptZh || item.prompt || 'Untitled prompt') : (item.prompt || 'Untitled prompt')}</span>
               </span>
               <span className="hero__mention-picker-at">@</span>
             </button>

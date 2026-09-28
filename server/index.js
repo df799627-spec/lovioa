@@ -52,6 +52,10 @@ import {
   claimDailyLoginReward,
   getTotalCredits,
   deductCredit,
+  CREDITS_PER_IMAGE,
+  redeemCard,
+  importRedeemCards,
+  RedeemCardError,
   isWebhookEventProcessed,
   markWebhookEventProcessed,
   createPasswordResetToken,
@@ -111,6 +115,7 @@ import { err, detectLang } from './i18n/index.js';
 import { uploadBuffer, isStorageConfigured, resolveImageUrl } from './services/cloudStorage.js';
 import { tagPromptsInParallel } from './services/taggingService.js';
 import { resolveGeoLocationFromRequest } from './services/geoip.js';
+import { normalizeGenerationCategory } from './services/categoryPromptBlueprints.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = path.join(__dirname, '..');
@@ -142,6 +147,7 @@ const APP_BASE_URL = String(process.env.APP_BASE_URL || '').trim();
 const OPENAI_BASE_URL = process.env.OPENAI_API_BASE_URL || process.env.VITE_OPENAI_API_BASE_URL || 'https://api.openai.com/v1';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || process.env.VITE_OPENAI_API_KEY || '';
 const OPENAI_IMAGE_MODEL_KEYS = process.env.OPENAI_IMAGE_MODEL_KEYS || '';
+const NANO_IMAGE_PROXY_URL = process.env.NANO_IMAGE_PROXY_URL || 'https://home.code2alita.com/api/playground/image';
 const GEN_FAST_API_BASE_URL = process.env.GEN_FAST_API_BASE_URL || '';
 const GEN_FAST_API_BASE_URL_CN = process.env.GEN_FAST_API_BASE_URL_CN || '';
 const GEN_FAST_API_PATH = process.env.GEN_FAST_API_PATH || '/v1/api/generate';
@@ -176,6 +182,9 @@ const HEARTBEAT_MAX_BACKFILL_CATEGORIES = Number(process.env.HEARTBEAT_MAX_BACKF
 const HEARTBEAT_DEEPSEEK_API_KEY = (process.env.HEARTBEAT_DEEPSEEK_API_KEY || process.env.DEEPSEEK_API_KEY || '').trim();
 const HEARTBEAT_DEEPSEEK_BASE_URL = (process.env.HEARTBEAT_DEEPSEEK_BASE_URL || process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1').trim();
 const HEARTBEAT_DEEPSEEK_MODEL = (process.env.HEARTBEAT_DEEPSEEK_MODEL || process.env.DEEPSEEK_TAG_MODEL || 'deepseek-chat').trim();
+const PROMPT_TEXT_API_KEY = (process.env.PROMPT_TEXT_API_KEY || process.env.DEEPSEEK_API_KEY || '').trim();
+const PROMPT_TEXT_BASE_URL = (process.env.PROMPT_TEXT_BASE_URL || process.env.DEEPSEEK_BASE_URL || 'https://d1api.xin/v1').trim();
+const PROMPT_TEXT_MODEL = (process.env.PROMPT_TEXT_MODEL || 'deepseek-v4.1-flash').trim();
 const HEARTBEAT_CHANNEL_DISTRIBUTION = (process.env.HEARTBEAT_CHANNEL_DISTRIBUTION || '').trim();
 const HEARTBEAT_INCLUDE_SLOW = String(process.env.HEARTBEAT_INCLUDE_SLOW || 'true').toLowerCase() !== 'false';
 const ADMIN_SESSION_TTL_DAYS = Math.max(1, Number(process.env.ADMIN_SESSION_TTL_DAYS || 30));
@@ -241,6 +250,14 @@ function parseModelApiKeys(raw) {
 }
 
 const IMAGE_MODEL_API_KEYS = parseModelApiKeys(OPENAI_IMAGE_MODEL_KEYS);
+const NANO_IMAGE_MODEL_MAP = parseModelApiKeys(
+  process.env.NANO_IMAGE_MODEL_MAP
+  || JSON.stringify({
+    'gemini-3-pro-image': 'gpt-image-gemini-3-pro-image',
+    'gemini-3.1-flash-image': 'gpt-image-gemini-3.1-flash-image',
+    'image-gemini-3-pro-image': 'gpt-image-gemini-3-pro-image',
+  }),
+);
 
 function openAiApiUrl(pathname) {
   const base = String(OPENAI_BASE_URL || '').trim().replace(/\/+$/, '');
@@ -1070,21 +1087,21 @@ app.get('/api/prompts', (req, res) => {
     const limit = Number(req.query.limit || 120);
     const offset = Number(req.query.offset || 0);
     const prompts = listPrompts({ category, search, sort, limit, offset });
+    const totalWhere = [];
+    const totalParams = {};
+    if (category && category !== 'Latest' && category !== 'Popular' && category !== 'Generated') {
+      totalWhere.push('category = @totalCategory');
+      totalParams.totalCategory = String(category);
+    }
+    if (search && String(search).trim()) {
+      totalWhere.push('(LOWER(prompt) LIKE @totalQuery OR LOWER(prompt_zh) LIKE @totalQuery OR LOWER(tags_json) LIKE @totalQuery OR LOWER(category) LIKE @totalQuery OR LOWER(author_name) LIKE @totalQuery)');
+      totalParams.totalQuery = `%${String(search).toLowerCase()}%`;
+    }
     const total = db.prepare(`
       SELECT COUNT(1) AS c
       FROM prompts
-      ${(() => {
-        const where = [];
-        if (category && category !== 'Latest' && category !== 'Popular' && category !== 'Generated') {
-          where.push(`category = ${JSON.stringify(String(category))}`);
-        }
-        if (search && String(search).trim()) {
-          const q = `%${String(search).toLowerCase()}%`;
-          where.push(`(LOWER(prompt) LIKE ${JSON.stringify(q)} OR LOWER(tags_json) LIKE ${JSON.stringify(q)} OR LOWER(category) LIKE ${JSON.stringify(q)} OR LOWER(author_name) LIKE ${JSON.stringify(q)})`);
-        }
-        return where.length ? `WHERE ${where.join(' AND ')}` : '';
-      })()}
-    `).get().c || 0;
+      ${totalWhere.length ? `WHERE ${totalWhere.join(' AND ')}` : ''}
+    `).get(totalParams)?.c || 0;
     res.json({ prompts, total, limit, offset });
   } catch (err2) {
     console.error('[api/prompts] error:', err2);
@@ -1252,7 +1269,7 @@ app.post('/api/gen/jobs', requireAuth, async (req, res) => {
     const effectivePublishToPrompts = currentUser?.isAdmin ? requestedPublish : false;
 
     const normalizedPrompt = prompt.trim();
-    const normalizedCategory = String(category || '').trim();
+    const normalizedCategory = normalizeGenerationCategory(category) || '';
     const normalizedGenerationOptions = normalizeGenerationOptions(model, generationOptions);
     // Screen prompts before any generation execution.
     try {
@@ -1284,6 +1301,7 @@ app.post('/api/gen/jobs', requireAuth, async (req, res) => {
       editStrength,
       maxAttempts: isFastPath ? 1 : maxAttempts,
       publishToPrompts: effectivePublishToPrompts,
+      category: normalizedCategory,
       initialStatus: isFastPath ? 'fast_running' : 'queued',
     });
 
@@ -1464,7 +1482,7 @@ app.post('/api/prompt/refine', async (req, res) => {
       return res.status(503).json(err(req, 'gen.moderationUnavailable'));
     }
 
-    if (!OPENAI_API_KEY) {
+    if (!PROMPT_TEXT_API_KEY) {
       return res.status(503).json({ error: 'AI service not configured' });
     }
 
@@ -1472,14 +1490,14 @@ app.post('/api/prompt/refine', async (req, res) => {
       ? '你是一个专业的 AI 修图指令工程师。用户给了一个模糊的修图需求，请把它润色成一个清晰的 AI 修图指令。描述：要保留什么、要改变什么、风格是什么。输出中文，简洁专业。'
       : 'You are a professional AI photography prompt engineer. The user gave a vague idea. Polish it into a detailed, professional AI image generation prompt in English. Include: subject, lighting, composition, style, camera settings, mood. Be specific and vivid.';
 
-    const response = await fetch(openAiApiUrl('/chat/completions'), {
+    const response = await fetch(`${PROMPT_TEXT_BASE_URL.replace(/\/+$/, '')}/chat/completions`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Authorization': `Bearer ${PROMPT_TEXT_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: PROMPT_TEXT_MODEL,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: normalizedPrompt },
@@ -2302,15 +2320,17 @@ const PLANS = [
     displayName: '入门套餐',
     price: 1000,
     currency: 'cny',
-    credits: 66,
+    credits: 330,
+    creditsPerImage: CREDITS_PER_IMAGE,
     fastCredits: 66,
     imagePrice: 0.15,
     coverImage: '/assets/pricing/starter-cover.jpg',
+    domesticPaymentUrl: 'https://wzyp.cn/item/4fsi9y',
     popular: false,
     features: [
-      'One-time purchase, never expires',
+      'One-time purchase',
       'About 66 AI image generations',
-      'About CNY 0.15 per image',
+      '330 credits, 5 credits per image',
     ],
   },
   {
@@ -2320,15 +2340,17 @@ const PLANS = [
     displayName: '标准套餐',
     price: 2000,
     currency: 'cny',
-    credits: 166,
+    credits: 830,
+    creditsPerImage: CREDITS_PER_IMAGE,
     fastCredits: 166,
     imagePrice: 0.12,
     coverImage: '/assets/pricing/standard-cover.jpg',
+    domesticPaymentUrl: 'https://wzyp.cn/item/12wlev',
     popular: true,
     features: [
-      'One-time purchase, never expires',
+      'One-time purchase',
       'About 166 AI image generations',
-      'About CNY 0.12 per image',
+      '830 credits, 5 credits per image',
     ],
   },
   {
@@ -2338,18 +2360,24 @@ const PLANS = [
     displayName: '高级套餐',
     price: 9900,
     currency: 'cny',
-    credits: 990,
+    credits: 4950,
+    creditsPerImage: CREDITS_PER_IMAGE,
     fastCredits: 990,
     imagePrice: 0.1,
     coverImage: '/assets/pricing/premium-cover.jpg',
+    domesticPaymentUrl: 'https://wzyp.cn/item/dq7twp',
     popular: false,
     features: [
-      'One-time purchase, never expires',
+      'One-time purchase',
       'About 990 AI image generations',
-      'About CNY 0.10 per image',
+      '4950 credits, 5 credits per image',
     ],
   },
 ];
+
+const DOMESTIC_PLAN_LABELS = Object.fromEntries(
+  PLANS.map(plan => [plan.id, plan.displayName]),
+);
 
 if (STRIPE_SECRET_KEY) {
   try {
@@ -2508,6 +2536,51 @@ app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), asyn
 
 app.get('/api/billing/plans', (_req, res) => res.json(Object.values(PLANS)));
 
+app.post('/api/redeem', requireAuth, (req, res) => {
+  const code = typeof req.body?.code === 'string' ? req.body.code : '';
+  try {
+    const result = redeemCard({ code, userId: req.currentUser.id });
+    res.json({
+      success: true,
+      planId: result.planId,
+      planLabel: DOMESTIC_PLAN_LABELS[result.planId] || result.planId,
+      credits: result.credits,
+      balance: getUserBilling(req.currentUser.id).balance,
+    });
+  } catch (error) {
+    if (error instanceof RedeemCardError) {
+      const status = error.code === 'USED' || error.code === 'ALREADY_REDEEMED' ? 409 : 400;
+      return res.status(status).json({ error: error.message });
+    }
+    console.error('[redeem] error:', error);
+    res.status(500).json({ error: '兑换失败，请稍后重试' });
+  }
+});
+
+app.post('/api/admin/redeem-cards/import', requireAdminAuth, (req, res) => {
+  const cards = Array.isArray(req.body?.cards) ? req.body.cards : [];
+  const validCards = cards.flatMap(card => {
+    const plan = PLANS.find(item => item.id === card?.planId);
+    if (!plan || typeof card?.code !== 'string') return [];
+    return [{
+      code: card.code,
+      planId: plan.id,
+      credits: plan.credits,
+      source: card.source || 'domestic',
+    }];
+  });
+  if (validCards.length === 0) {
+    return res.status(400).json({ error: '没有可导入的卡密' });
+  }
+  try {
+    const result = importRedeemCards(validCards);
+    res.status(201).json(result);
+  } catch (error) {
+    console.error('[redeem] import error:', error);
+    res.status(500).json({ error: '卡密导入失败' });
+  }
+});
+
 app.get('/api/billing/balance', requireAuth, (req, res) => {
   try { res.json(getUserBilling(req.currentUser.id)); }
   catch (err2) { res.status(500).json(err(req, 'common.internalError')); }
@@ -2529,7 +2602,7 @@ app.post('/api/billing/topup', requireAuth, async (req, res) => {
           currency: topupPlan.currency,
           product_data: {
             name: `Promptfolio ${topupPlan.displayName}`,
-            description: `${topupPlan.credits} AI image generations`,
+            description: `${topupPlan.fastCredits} AI image generations, ${topupPlan.credits} credits`,
           },
           unit_amount: topupPlan.price,
         },
@@ -2604,6 +2677,8 @@ function startBackgroundWorkers() {
     baseUrl: OPENAI_BASE_URL,
     apiKey: OPENAI_API_KEY,
     apiKeysByModel: IMAGE_MODEL_API_KEYS,
+    nanoImageProxyUrl: NANO_IMAGE_PROXY_URL,
+    nanoImageModelMap: NANO_IMAGE_MODEL_MAP,
     fastChannelsRaw: GEN_FAST_CHANNELS,
     fastBaseUrl: GEN_FAST_API_BASE_URL,
     fastBaseUrlCn: GEN_FAST_API_BASE_URL_CN,

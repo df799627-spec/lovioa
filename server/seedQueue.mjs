@@ -203,7 +203,7 @@ async function enqueueJob(prompt, category, model = MODEL, size = SIZE, quality 
   const res = await fetch(`${BASE}/api/gen/jobs`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, model, size, quality }),
+    body: JSON.stringify({ prompt, model, size, quality, category }),
   });
   if (!res.ok) {
     const text = await res.text();

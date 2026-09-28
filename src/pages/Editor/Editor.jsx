@@ -7,7 +7,11 @@ import { useApp } from '../../context/AppContext';
 import { api } from '../../services/api';
 import { trackAction } from '../../services/analytics';
 import { normalizePromptCategory } from '../../utils/promptCategory';
-import { DEFAULT_IMAGE_MODEL, getImageModelConfig, IMAGE_MODEL_OPTIONS } from '../../config/imageModels';
+import {
+  DEFAULT_IMAGE_MODEL,
+  getImageModelConfig,
+  VISIBLE_IMAGE_MODEL_OPTIONS,
+} from '../../config/imageModels';
 import './Editor.css';
 
 const POLL_INTERVAL_MS = 2000;
@@ -70,7 +74,7 @@ export default function Editor() {
   const isGeneratingRef = useRef(false);
   const modelConfig1 = getImageModelConfig(model1);
   const modelConfig2 = getImageModelConfig(model2);
-  const editorModelOptions2 = IMAGE_MODEL_OPTIONS.filter(option => option.supportsEdit);
+  const editorModelOptions2 = VISIBLE_IMAGE_MODEL_OPTIONS.filter(option => option.supportsEdit);
 
   // Sync locale defaults
   useEffect(() => {
@@ -84,7 +88,7 @@ export default function Editor() {
   }, [t]);
 
   useEffect(() => {
-    setModel1(prev => IMAGE_MODEL_OPTIONS.some(o => o.value === prev) ? prev : DEFAULT_IMAGE_MODEL);
+    setModel1(prev => VISIBLE_IMAGE_MODEL_OPTIONS.some(o => o.value === prev) ? prev : DEFAULT_IMAGE_MODEL);
     setModel2(prev => editorModelOptions2.some(o => o.value === prev) ? prev : editorModelOptions2[0].value);
   }, []);
   useEffect(() => {
@@ -463,8 +467,10 @@ export default function Editor() {
                           onChange={e => setModel1(e.target.value)}
                           disabled={isGenerating1}
                         >
-                          {IMAGE_MODEL_OPTIONS.map(opt => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          {VISIBLE_IMAGE_MODEL_OPTIONS.map(option => (
+                            <option key={option.value} value={option.value}>
+                              {option.label} · {option.capability}
+                            </option>
                           ))}
                         </select>
                       </div>

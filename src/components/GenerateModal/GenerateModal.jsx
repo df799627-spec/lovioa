@@ -6,7 +6,11 @@ import { useApp } from '../../context/AppContext';
 import { api } from '../../services/api';
 import { trackAction } from '../../services/analytics';
 import { normalizePromptCategory } from '../../utils/promptCategory';
-import { DEFAULT_IMAGE_MODEL, getImageModelConfig, IMAGE_MODEL_OPTIONS } from '../../config/imageModels';
+import {
+  DEFAULT_IMAGE_MODEL,
+  getImageModelConfig,
+  VISIBLE_IMAGE_MODEL_OPTIONS,
+} from '../../config/imageModels';
 import './GenerateModal.css';
 import ShareButton from '../ShareButton/ShareButton';
 
@@ -53,7 +57,7 @@ export default function GenerateModal({
   ], [t]);
 
   const [selectedModel, setSelectedModel] = useState(() =>
-    IMAGE_MODEL_OPTIONS.some(option => option.value === initialModel)
+    VISIBLE_IMAGE_MODEL_OPTIONS.some(option => option.value === initialModel)
       ? initialModel
       : DEFAULT_IMAGE_MODEL
   );
@@ -88,8 +92,8 @@ export default function GenerateModal({
   const selectedModelConfig = getImageModelConfig(selectedModel);
   const isGeminiModel = selectedModelConfig.family === 'gemini';
   const availableModelOptions = mode === 'edit'
-    ? IMAGE_MODEL_OPTIONS.filter(option => option.supportsEdit)
-    : IMAGE_MODEL_OPTIONS;
+    ? VISIBLE_IMAGE_MODEL_OPTIONS.filter(option => option.supportsEdit)
+    : VISIBLE_IMAGE_MODEL_OPTIONS;
 
   // Sync selected values when locale/options change (avoids stale default on first render)
   useEffect(() => {
@@ -480,8 +484,10 @@ export default function GenerateModal({
                     onChange={e => setSelectedModel(e.target.value)}
                     disabled={isLoading}
                   >
-                    {availableModelOptions.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    {availableModelOptions.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label} · {option.capability}
+                      </option>
                     ))}
                   </select>
                   <ChevronDown size={12} className="generate-modal__select-icon" />

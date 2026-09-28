@@ -78,12 +78,71 @@ async function requestFormData(path, body) {
   return normalizeApiPayload(payload);
 }
 
+export function isRealGeneratedPrompt(prompt) {
+  if (!prompt || !String(prompt.id || '').startsWith('gen-')) return false;
+  const imageUrl = String(prompt.imageUrl || '').trim().toLowerCase();
+  if (!imageUrl || imageUrl.startsWith('data:')) return false;
+  if (
+    imageUrl === '/image-placeholder.svg'
+    || imageUrl === '/uploads/test.png'
+    || imageUrl.includes('/test-generated/')
+    || imageUrl.includes('test.png')
+  ) {
+    return false;
+  }
+  return true;
+}
+
+export function filterRealGeneratedPrompts(prompts = []) {
+  const byId = new Map();
+  for (const prompt of prompts) {
+    if (isRealGeneratedPrompt(prompt) && !byId.has(prompt.id)) {
+      byId.set(prompt.id, prompt);
+    }
+  }
+  return [...byId.values()];
+}
+
+async function getRealGeneratedPrompts(params = {}) {
+  const filters = { ...params };
+  delete filters.limit;
+  delete filters.offset;
+
+  const pageSize = 500;
+  const prompts = [];
+  let offset = 0;
+  let total = Infinity;
+
+  while (offset < total) {
+    const qs = new URLSearchParams({
+      ...filters,
+      limit: String(pageSize),
+      offset: String(offset),
+    }).toString();
+    const data = await request(`/prompts?${qs}`);
+    const page = Array.isArray(data?.prompts) ? data.prompts : [];
+    prompts.push(...page);
+
+    const nextTotal = Number(data?.total);
+    total = Number.isFinite(nextTotal) ? nextTotal : offset + page.length;
+    if (page.length === 0 || page.length < pageSize) break;
+    offset += page.length;
+  }
+
+  const filteredPrompts = filterRealGeneratedPrompts(prompts);
+  return {
+    prompts: filteredPrompts,
+    total: filteredPrompts.length,
+  };
+}
+
 export const api = {
   // Prompts
   getPrompts: (params = {}) => {
     const qs = new URLSearchParams({ limit: '500', ...params }).toString();
     return request(`/prompts${qs ? `?${qs}` : ''}`);
   },
+  getGeneratedPrompts: getRealGeneratedPrompts,
   getPrompt: (id) => request(`/prompts/${id}`),
   createPrompt: (data) => request('/prompts', { method: 'POST', body: JSON.stringify(data) }),
   updatePrompt: (id, data) => request(`/prompts/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
@@ -185,6 +244,7 @@ export const api = {
   billingPlans: () => request('/billing/plans'),
   billingCheckout: (planId) => request('/billing/checkout', { method: 'POST', body: JSON.stringify({ planId }) }),
   billingBalance: () => request('/billing/balance'),
+  redeemCard: (code) => request('/redeem', { method: 'POST', body: JSON.stringify({ code }) }),
   billingTopUp: (amountCents) => request('/billing/topup', { method: 'POST', body: JSON.stringify({ amount: amountCents }) }),
   billingPortal: () => request('/billing/portal', { method: 'POST' }),
   billingCancel: () => request('/billing/cancel', { method: 'POST' }),

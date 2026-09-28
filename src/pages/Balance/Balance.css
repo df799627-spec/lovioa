@@ -96,6 +96,12 @@
   font-family: var(--font-body);
 }
 
+.balance-card__equivalent {
+  margin-top: 4px;
+  font-size: 0.75rem;
+  color: var(--color-secondary);
+}
+
 .balance-card__refresh {
   color: var(--color-secondary);
   padding: var(--space-2);
@@ -297,6 +303,14 @@
 .balance-page__top-up-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.balance-page__payment-hint {
+  margin-top: var(--space-3);
+  color: var(--color-secondary);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  text-align: center;
 }
 
 .balance-page__spinner {

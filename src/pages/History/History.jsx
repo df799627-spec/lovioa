@@ -3,10 +3,11 @@ import { Trash2, Copy, Check, ExternalLink, Trash } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
+import { getImageModelDisplayName } from '../../config/imageModels';
 import './History.css';
 
 export default function History() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { generationHistory, removeFromHistory, clearHistory } = useApp();
   const [copiedId, setCopiedId] = useState(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -20,7 +21,10 @@ export default function History() {
 
   const formatDate = (iso) => {
     const d = new Date(iso);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleString(i18n.resolvedLanguage || i18n.language, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
   };
 
   return (
@@ -86,13 +90,17 @@ export default function History() {
                       e.currentTarget.remove();
                     }}
                   />
-                  <div className="history-card__model-tag">{item.model}</div>
+                  <div className="history-card__model-tag">{getImageModelDisplayName(item.model)}</div>
                   <button className="history-card__delete" onClick={() => removeFromHistory(item.id)} title={t('history.delete')}>
                     <Trash2 size={13} />
                   </button>
                 </div>
                 <div className="history-card__body">
-                  <p className="history-card__prompt">{item.prompt}</p>
+                  <p className="history-card__prompt">
+                    {(i18n.resolvedLanguage || i18n.language || '').toLowerCase().startsWith('zh')
+                      ? (item.promptZh || item.prompt)
+                      : item.prompt}
+                  </p>
                   <div className="history-card__meta">
                     <span className="history-card__date">{formatDate(item.createdAt)}</span>
                     <div className="history-card__actions">
