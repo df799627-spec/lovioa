@@ -1,0 +1,121 @@
+.redeem-page {
+  min-height: calc(100vh - var(--nav-height));
+  padding: calc(var(--nav-height) + var(--space-10)) var(--space-6) var(--space-12);
+}
+
+.redeem-page__inner {
+  max-width: 560px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.redeem-page__eyebrow {
+  display: inline-block;
+  margin-bottom: var(--space-4);
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--color-accent-bg);
+  color: var(--color-accent);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.redeem-page__title {
+  margin-bottom: var(--space-3);
+  color: var(--color-text);
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  font-weight: 600;
+}
+
+.redeem-page__subtitle {
+  margin-bottom: var(--space-8);
+  color: var(--color-secondary);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.redeem-card {
+  padding: var(--space-8);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow);
+  text-align: left;
+}
+
+.redeem-card__label {
+  display: block;
+  margin-bottom: var(--space-2);
+  color: var(--color-text);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.redeem-card__input {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  outline: none;
+  background: var(--color-background);
+  color: var(--color-text);
+  font: inherit;
+  letter-spacing: 0.04em;
+}
+
+.redeem-card__input:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-glow);
+}
+
+.redeem-card__button {
+  width: 100%;
+  min-height: 52px;
+  margin-top: var(--space-5);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: #fff;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.redeem-card__button:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+.redeem-card__button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.redeem-card__message {
+  margin: var(--space-4) 0 0;
+  color: #dc2626;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.redeem-card__message--success {
+  color: #15803d;
+}
+
+@media (max-width: 480px) {
+  .redeem-page {
+    padding: calc(var(--nav-height) + var(--space-6)) var(--space-4) var(--space-8);
+  }
+
+  .redeem-page__title {
+    font-size: 2rem;
+  }
+
+  .redeem-card {
+    padding: var(--space-6);
+  }
+}

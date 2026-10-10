@@ -1,0 +1,35 @@
+.team-page {
+  padding-top: calc(var(--nav-height) + 56px);
+  padding-bottom: 96px;
+}
+
+.team-page__card {
+  max-width: 760px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 28px 24px;
+  background: color-mix(in srgb, var(--color-surface) 88%, #ffffff 12%);
+}
+
+.team-page__eyebrow {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-secondary);
+}
+
+.team-page__title {
+  margin: 0 0 12px;
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 3.6vw, 2.3rem);
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.team-page__desc {
+  margin: 0;
+  font-size: 0.96rem;
+  line-height: 1.75;
+  color: var(--color-secondary);
+}

@@ -1,0 +1,666 @@
+{
+  "generatedAt": "2026-09-28T13:21:07.637Z",
+  "model": "gpt-image-2",
+  "quality": "low",
+  "provider": "openai-compatible-proxy",
+  "results": [
+    {
+      "category": "ecommerce",
+      "subcategory": "womenswear",
+      "prompt": "Use case: premium commercial product photography. Asset type: Lovioa secondary-category reference image for E-commerce / Womenswear. Create an original AI-generated visual that clearly represents womenswear within e-commerce. Subject and direction: Womenswear, women, woman, dress, skirt. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "error": "",
+      "imageBytes": 128887
+    },
+    {
+      "category": "ecommerce",
+      "subcategory": "menswear",
+      "prompt": "Use case: premium commercial product photography. Asset type: Lovioa secondary-category reference image for E-commerce / Menswear. Create an original AI-generated visual that clearly represents menswear within e-commerce. Subject and direction: Menswear, men, man, suit, menswear. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 84001,
+      "imageUrl": "/assets/subcategories/ecommerce/menswear.webp"
+    },
+    {
+      "category": "ecommerce",
+      "subcategory": "kidswear",
+      "prompt": "Use case: premium commercial product photography. Asset type: Lovioa secondary-category reference image for E-commerce / Kidswear. Create an original AI-generated visual that clearly represents kidswear within e-commerce. Subject and direction: Kidswear, kid, child, children, 童装. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 2,
+      "imageBytes": 112937,
+      "imageUrl": "/assets/subcategories/ecommerce/kidswear.webp"
+    },
+    {
+      "category": "ecommerce",
+      "subcategory": "shoes",
+      "prompt": "Use case: premium commercial product photography. Asset type: Lovioa secondary-category reference image for E-commerce / Shoes. Create an original AI-generated visual that clearly represents shoes within e-commerce. Subject and direction: Shoes, shoe, sneaker, boots, 鞋. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 149192,
+      "imageUrl": "/assets/subcategories/ecommerce/shoes.webp"
+    },
+    {
+      "category": "ecommerce",
+      "subcategory": "bags",
+      "prompt": "Use case: premium commercial product photography. Asset type: Lovioa secondary-category reference image for E-commerce / Bags. Create an original AI-generated visual that clearly represents bags within e-commerce. Subject and direction: Bags, bag, handbag, luggage, 箱包. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 166649,
+      "imageUrl": "/assets/subcategories/ecommerce/bags.webp"
+    },
+    {
+      "category": "ecommerce",
+      "subcategory": "accessories",
+      "prompt": "Use case: premium commercial product photography. Asset type: Lovioa secondary-category reference image for E-commerce / Accessories. Create an original AI-generated visual that clearly represents accessories within e-commerce. Subject and direction: Accessories, accessories, jewelry, watch, 配饰. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 142674,
+      "imageUrl": "/assets/subcategories/ecommerce/accessories.webp"
+    },
+    {
+      "category": "ecommerce",
+      "subcategory": "home-textiles",
+      "prompt": "Use case: premium commercial product photography. Asset type: Lovioa secondary-category reference image for E-commerce / Home Textiles. Create an original AI-generated visual that clearly represents home textiles within e-commerce. Subject and direction: Home Textiles, home textile, bedding, fabric, 家纺. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 198232,
+      "imageUrl": "/assets/subcategories/ecommerce/home-textiles.webp"
+    },
+    {
+      "category": "ecommerce",
+      "subcategory": "retouching",
+      "prompt": "Use case: premium commercial product photography. Asset type: Lovioa secondary-category reference image for E-commerce / Product Retouching. Create an original AI-generated visual that clearly represents product retouching within e-commerce. Subject and direction: Product Retouching, product shot, packshot, retouch, 精修. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 80893,
+      "imageUrl": "/assets/subcategories/ecommerce/retouching.webp"
+    },
+    {
+      "category": "ecommerce",
+      "subcategory": "tech",
+      "prompt": "Use case: premium commercial product photography. Asset type: Lovioa secondary-category reference image for E-commerce / Tech & Appliances. Create an original AI-generated visual that clearly represents tech & appliances within e-commerce. Subject and direction: Tech & Appliances, tech, phone, laptop, headphone. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "error": "",
+      "imageBytes": 77023
+    },
+    {
+      "category": "ecommerce",
+      "subcategory": "beauty",
+      "prompt": "Use case: premium commercial product photography. Asset type: Lovioa secondary-category reference image for E-commerce / Beauty & Care. Create an original AI-generated visual that clearly represents beauty & care within e-commerce. Subject and direction: Beauty & Care, beauty, makeup, cosmetics, skincare. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 107748,
+      "imageUrl": "/assets/subcategories/ecommerce/beauty.webp"
+    },
+    {
+      "category": "ecommerce",
+      "subcategory": "food",
+      "prompt": "Use case: premium commercial product photography. Asset type: Lovioa secondary-category reference image for E-commerce / Food & Drinks. Create an original AI-generated visual that clearly represents food & drinks within e-commerce. Subject and direction: Food & Drinks, food, drink, coffee, dessert. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 150906,
+      "imageUrl": "/assets/subcategories/ecommerce/food.webp"
+    },
+    {
+      "category": "ecommerce",
+      "subcategory": "other",
+      "prompt": "Use case: premium commercial product photography. Asset type: Lovioa secondary-category reference image for E-commerce / Other. Create an original AI-generated visual that clearly represents other within e-commerce. Subject and direction: Other, product, commerce, 商品, 产品. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 113902,
+      "imageUrl": "/assets/subcategories/ecommerce/other.webp"
+    },
+    {
+      "category": "posters",
+      "subcategory": "campaign",
+      "prompt": "Use case: high-end creative direction reference image. Asset type: Lovioa secondary-category reference image for Posters & Illustration / Campaign Posters. Create an original AI-generated visual that clearly represents campaign posters within posters & illustration. Subject and direction: Campaign Posters, campaign, advertising, marketing, 营销. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 168396,
+      "imageUrl": "/assets/subcategories/posters/campaign.webp"
+    },
+    {
+      "category": "posters",
+      "subcategory": "brand",
+      "prompt": "Use case: high-end creative direction reference image. Asset type: Lovioa secondary-category reference image for Posters & Illustration / Brand Visuals. Create an original AI-generated visual that clearly represents brand visuals within posters & illustration. Subject and direction: Brand Visuals, brand, branding, identity, 品牌. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 122183,
+      "imageUrl": "/assets/subcategories/posters/brand.webp"
+    },
+    {
+      "category": "posters",
+      "subcategory": "social",
+      "prompt": "Use case: high-end creative direction reference image. Asset type: Lovioa secondary-category reference image for Posters & Illustration / Social Content. Create an original AI-generated visual that clearly represents social content within posters & illustration. Subject and direction: Social Content, social media, instagram, xiaohongshu, tiktok. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 2,
+      "imageBytes": 136527,
+      "imageUrl": "/assets/subcategories/posters/social.webp"
+    },
+    {
+      "category": "posters",
+      "subcategory": "illustration",
+      "prompt": "Use case: high-end creative direction reference image. Asset type: Lovioa secondary-category reference image for Posters & Illustration / Illustration. Create an original AI-generated visual that clearly represents illustration within posters & illustration. Subject and direction: Illustration, illustration, drawing, comic, 插画. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 2,
+      "imageBytes": 181564,
+      "imageUrl": "/assets/subcategories/posters/illustration.webp"
+    },
+    {
+      "category": "posters",
+      "subcategory": "editorial",
+      "prompt": "Use case: high-end creative direction reference image. Asset type: Lovioa secondary-category reference image for Posters & Illustration / Editorial. Create an original AI-generated visual that clearly represents editorial within posters & illustration. Subject and direction: Editorial, editorial, magazine, cover, 杂志. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 2,
+      "imageBytes": 143874,
+      "imageUrl": "/assets/subcategories/posters/editorial.webp"
+    },
+    {
+      "category": "infographic",
+      "subcategory": "data",
+      "prompt": "Use case: high-end creative direction reference image. Asset type: Lovioa secondary-category reference image for Infographics / Data Dashboards. Create an original AI-generated visual that clearly represents data dashboards within infographics. Subject and direction: Data Dashboards, dashboard, analytics, data, 看板. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 121038,
+      "imageUrl": "/assets/subcategories/infographic/data.webp"
+    },
+    {
+      "category": "infographic",
+      "subcategory": "process",
+      "prompt": "Use case: high-end creative direction reference image. Asset type: Lovioa secondary-category reference image for Infographics / Process Diagrams. Create an original AI-generated visual that clearly represents process diagrams within infographics. Subject and direction: Process Diagrams, flowchart, process, workflow, 流程图. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "error": "",
+      "imageBytes": 955122
+    },
+    {
+      "category": "infographic",
+      "subcategory": "timeline",
+      "prompt": "Use case: high-end creative direction reference image. Asset type: Lovioa secondary-category reference image for Infographics / Timelines. Create an original AI-generated visual that clearly represents timelines within infographics. Subject and direction: Timelines, timeline, history, 时间轴, 历程. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 101740,
+      "imageUrl": "/assets/subcategories/infographic/timeline.webp"
+    },
+    {
+      "category": "infographic",
+      "subcategory": "comparison",
+      "prompt": "Use case: high-end creative direction reference image. Asset type: Lovioa secondary-category reference image for Infographics / Comparisons. Create an original AI-generated visual that clearly represents comparisons within infographics. Subject and direction: Comparisons, comparison, chart, compare, 对比. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 81902,
+      "imageUrl": "/assets/subcategories/infographic/comparison.webp"
+    },
+    {
+      "category": "infographic",
+      "subcategory": "knowledge",
+      "prompt": "Use case: high-end creative direction reference image. Asset type: Lovioa secondary-category reference image for Infographics / Knowledge. Create an original AI-generated visual that clearly represents knowledge within infographics. Subject and direction: Knowledge, education, knowledge, learning, 科普. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 199853,
+      "imageUrl": "/assets/subcategories/infographic/knowledge.webp"
+    },
+    {
+      "category": "presentation",
+      "subcategory": "business",
+      "prompt": "Use case: high-end creative direction reference image. Asset type: Lovioa secondary-category reference image for PPT & Templates / Business. Create an original AI-generated visual that clearly represents business within ppt & templates. Subject and direction: Business, business, pitch, strategy, 商务. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "error": "",
+      "imageBytes": 1619269
+    },
+    {
+      "category": "presentation",
+      "subcategory": "report",
+      "prompt": "Use case: high-end creative direction reference image. Asset type: Lovioa secondary-category reference image for PPT & Templates / Reports. Create an original AI-generated visual that clearly represents reports within ppt & templates. Subject and direction: Reports, report, proposal, research, 报告. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 2,
+      "imageBytes": 91493,
+      "imageUrl": "/assets/subcategories/presentation/report.webp"
+    },
+    {
+      "category": "presentation",
+      "subcategory": "education",
+      "prompt": "Use case: high-end creative direction reference image. Asset type: Lovioa secondary-category reference image for PPT & Templates / Education. Create an original AI-generated visual that clearly represents education within ppt & templates. Subject and direction: Education, education, course, lesson, 教育. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "error": "",
+      "imageBytes": 1161723
+    },
+    {
+      "category": "presentation",
+      "subcategory": "portfolio",
+      "prompt": "Use case: high-end creative direction reference image. Asset type: Lovioa secondary-category reference image for PPT & Templates / Portfolio. Create an original AI-generated visual that clearly represents portfolio within ppt & templates. Subject and direction: Portfolio, portfolio, case study, 作品集, 案例. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 107738,
+      "imageUrl": "/assets/subcategories/presentation/portfolio.webp"
+    },
+    {
+      "category": "presentation",
+      "subcategory": "template",
+      "prompt": "Use case: high-end creative direction reference image. Asset type: Lovioa secondary-category reference image for PPT & Templates / Templates. Create an original AI-generated visual that clearly represents templates within ppt & templates. Subject and direction: Templates, template, layout, 模板, 版式. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "error": "",
+      "imageBytes": 100332
+    },
+    {
+      "category": "visual-art",
+      "subcategory": "3d",
+      "prompt": "Use case: high-end creative direction reference image. Asset type: Lovioa secondary-category reference image for Visual Art / 3D. Create an original AI-generated visual that clearly represents 3d within visual art. Subject and direction: 3D, 3d, render, cgi, 三维. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 188725,
+      "imageUrl": "/assets/subcategories/visual-art/3d.webp"
+    },
+    {
+      "category": "visual-art",
+      "subcategory": "concept",
+      "prompt": "Use case: high-end creative direction reference image. Asset type: Lovioa secondary-category reference image for Visual Art / Concept Art. Create an original AI-generated visual that clearly represents concept art within visual art. Subject and direction: Concept Art, concept art, concept, 概念, 设定. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "error": "",
+      "imageBytes": 1537139
+    },
+    {
+      "category": "visual-art",
+      "subcategory": "character",
+      "prompt": "Use case: high-end creative direction reference image. Asset type: Lovioa secondary-category reference image for Visual Art / Characters. Create an original AI-generated visual that clearly represents characters within visual art. Subject and direction: Characters, character, warrior, hero, 角色. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 137074,
+      "imageUrl": "/assets/subcategories/visual-art/character.webp"
+    },
+    {
+      "category": "visual-art",
+      "subcategory": "environment",
+      "prompt": "Use case: high-end creative direction reference image. Asset type: Lovioa secondary-category reference image for Visual Art / Environments. Create an original AI-generated visual that clearly represents environments within visual art. Subject and direction: Environments, environment, scene, level, 场景. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 2,
+      "imageBytes": 213373,
+      "imageUrl": "/assets/subcategories/visual-art/environment.webp"
+    },
+    {
+      "category": "visual-art",
+      "subcategory": "abstract",
+      "prompt": "Use case: high-end creative direction reference image. Asset type: Lovioa secondary-category reference image for Visual Art / Abstract. Create an original AI-generated visual that clearly represents abstract within visual art. Subject and direction: Abstract, abstract, surreal, glitch, 抽象. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 129874,
+      "imageUrl": "/assets/subcategories/visual-art/abstract.webp"
+    },
+    {
+      "category": "architecture",
+      "subcategory": "interior",
+      "prompt": "Use case: cinematic architectural and environment photography. Asset type: Lovioa secondary-category reference image for Architecture & Interior / Interior. Create an original AI-generated visual that clearly represents interior within architecture & interior. Subject and direction: Interior, interior, room, living room, 室内. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 166682,
+      "imageUrl": "/assets/subcategories/architecture/interior.webp"
+    },
+    {
+      "category": "architecture",
+      "subcategory": "exterior",
+      "prompt": "Use case: cinematic architectural and environment photography. Asset type: Lovioa secondary-category reference image for Architecture & Interior / Exterior. Create an original AI-generated visual that clearly represents exterior within architecture & interior. Subject and direction: Exterior, exterior, facade, building, 建筑外观. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 2,
+      "imageBytes": 144997,
+      "imageUrl": "/assets/subcategories/architecture/exterior.webp"
+    },
+    {
+      "category": "architecture",
+      "subcategory": "commercial",
+      "prompt": "Use case: cinematic architectural and environment photography. Asset type: Lovioa secondary-category reference image for Architecture & Interior / Commercial. Create an original AI-generated visual that clearly represents commercial within architecture & interior. Subject and direction: Commercial, hotel, restaurant, office, 商业. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 167913,
+      "imageUrl": "/assets/subcategories/architecture/commercial.webp"
+    },
+    {
+      "category": "architecture",
+      "subcategory": "residential",
+      "prompt": "Use case: cinematic architectural and environment photography. Asset type: Lovioa secondary-category reference image for Architecture & Interior / Residential. Create an original AI-generated visual that clearly represents residential within architecture & interior. Subject and direction: Residential, house, apartment, home, 住宅. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 2,
+      "imageBytes": 181769,
+      "imageUrl": "/assets/subcategories/architecture/residential.webp"
+    },
+    {
+      "category": "architecture",
+      "subcategory": "exhibition",
+      "prompt": "Use case: cinematic architectural and environment photography. Asset type: Lovioa secondary-category reference image for Architecture & Interior / Exhibition. Create an original AI-generated visual that clearly represents exhibition within architecture & interior. Subject and direction: Exhibition, exhibition, gallery, museum, 展览. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "error": "",
+      "imageBytes": 96597
+    },
+    {
+      "category": "industrial",
+      "subcategory": "product",
+      "prompt": "Use case: premium commercial product photography. Asset type: Lovioa secondary-category reference image for Industrial & Product / Product Renders. Create an original AI-generated visual that clearly represents product renders within industrial & product. Subject and direction: Product Renders, product, render, 产品, 渲染. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 2,
+      "imageBytes": 99005,
+      "imageUrl": "/assets/subcategories/industrial/product.webp"
+    },
+    {
+      "category": "industrial",
+      "subcategory": "packaging",
+      "prompt": "Use case: premium commercial product photography. Asset type: Lovioa secondary-category reference image for Industrial & Product / Packaging. Create an original AI-generated visual that clearly represents packaging within industrial & product. Subject and direction: Packaging, packaging, package, 包装. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "error": "",
+      "imageBytes": 96188
+    },
+    {
+      "category": "industrial",
+      "subcategory": "mockup",
+      "prompt": "Use case: premium commercial product photography. Asset type: Lovioa secondary-category reference image for Industrial & Product / Mockups. Create an original AI-generated visual that clearly represents mockups within industrial & product. Subject and direction: Mockups, mockup, prototype, 样机, 原型. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 2,
+      "imageBytes": 92915,
+      "imageUrl": "/assets/subcategories/industrial/mockup.webp"
+    },
+    {
+      "category": "industrial",
+      "subcategory": "electronics",
+      "prompt": "Use case: premium commercial product photography. Asset type: Lovioa secondary-category reference image for Industrial & Product / Electronics. Create an original AI-generated visual that clearly represents electronics within industrial & product. Subject and direction: Electronics, electronics, device, hardware, 电子. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 105176,
+      "imageUrl": "/assets/subcategories/industrial/electronics.webp"
+    },
+    {
+      "category": "industrial",
+      "subcategory": "industrial",
+      "prompt": "Use case: premium commercial product photography. Asset type: Lovioa secondary-category reference image for Industrial & Product / Industrial. Create an original AI-generated visual that clearly represents industrial within industrial & product. Subject and direction: Industrial, industrial, machine, equipment, 工业. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 2,
+      "imageBytes": 145790,
+      "imageUrl": "/assets/subcategories/industrial/industrial.webp"
+    },
+    {
+      "category": "ui",
+      "subcategory": "mobile",
+      "prompt": "Use case: high-end creative direction reference image. Asset type: Lovioa secondary-category reference image for UI & Interaction / Mobile. Create an original AI-generated visual that clearly represents mobile within ui & interaction. Subject and direction: Mobile, mobile, ios, android, 移动端. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 90479,
+      "imageUrl": "/assets/subcategories/ui/mobile.webp"
+    },
+    {
+      "category": "ui",
+      "subcategory": "web",
+      "prompt": "Use case: high-end creative direction reference image. Asset type: Lovioa secondary-category reference image for UI & Interaction / Web. Create an original AI-generated visual that clearly represents web within ui & interaction. Subject and direction: Web, web, website, landing page, 网站. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 94973,
+      "imageUrl": "/assets/subcategories/ui/web.webp"
+    },
+    {
+      "category": "ui",
+      "subcategory": "dashboard",
+      "prompt": "Use case: high-end creative direction reference image. Asset type: Lovioa secondary-category reference image for UI & Interaction / Dashboard. Create an original AI-generated visual that clearly represents dashboard within ui & interaction. Subject and direction: Dashboard, dashboard, data, analytics, 仪表盘. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 2,
+      "imageBytes": 93268,
+      "imageUrl": "/assets/subcategories/ui/dashboard.webp"
+    },
+    {
+      "category": "ui",
+      "subcategory": "ecommerce",
+      "prompt": "Use case: high-end creative direction reference image. Asset type: Lovioa secondary-category reference image for UI & Interaction / E-commerce. Create an original AI-generated visual that clearly represents e-commerce within ui & interaction. Subject and direction: E-commerce, ecommerce, shop, commerce, 电商. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 97178,
+      "imageUrl": "/assets/subcategories/ui/ecommerce.webp"
+    },
+    {
+      "category": "ui",
+      "subcategory": "system",
+      "prompt": "Use case: high-end creative direction reference image. Asset type: Lovioa secondary-category reference image for UI & Interaction / Design System. Create an original AI-generated visual that clearly represents design system within ui & interaction. Subject and direction: Design System, design system, component, 设计系统, 组件. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "error": "",
+      "imageBytes": 106002
+    },
+    {
+      "category": "people",
+      "subcategory": "portrait",
+      "prompt": "Use case: original editorial photography. Asset type: Lovioa secondary-category reference image for Photography & People / Portraits. Create an original AI-generated visual that clearly represents portraits within photography & people. Subject and direction: Portraits, portrait, headshot, face, 人物. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "error": "",
+      "imageBytes": 1254834
+    },
+    {
+      "category": "people",
+      "subcategory": "fashion",
+      "prompt": "Use case: original editorial photography. Asset type: Lovioa secondary-category reference image for Photography & People / Fashion. Create an original AI-generated visual that clearly represents fashion within photography & people. Subject and direction: Fashion, fashion, outfit, lookbook, 时尚. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "error": "",
+      "imageBytes": 78632
+    },
+    {
+      "category": "people",
+      "subcategory": "beauty",
+      "prompt": "Use case: original editorial photography. Asset type: Lovioa secondary-category reference image for Photography & People / Beauty. Create an original AI-generated visual that clearly represents beauty within photography & people. Subject and direction: Beauty, beauty, makeup, skin, 美妆. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "error": "",
+      "imageBytes": 1550816
+    },
+    {
+      "category": "people",
+      "subcategory": "street",
+      "prompt": "Use case: original editorial photography. Asset type: Lovioa secondary-category reference image for Photography & People / Street. Create an original AI-generated visual that clearly represents street within photography & people. Subject and direction: Street, street, urban, city, 街头. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 128067,
+      "imageUrl": "/assets/subcategories/people/street.webp"
+    },
+    {
+      "category": "people",
+      "subcategory": "avatar",
+      "prompt": "Use case: original editorial photography. Asset type: Lovioa secondary-category reference image for Photography & People / Avatars. Create an original AI-generated visual that clearly represents avatars within photography & people. Subject and direction: Avatars, avatar, profile picture, pfp, 头像. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 87403,
+      "imageUrl": "/assets/subcategories/people/avatar.webp"
+    },
+    {
+      "category": "landscape",
+      "subcategory": "nature",
+      "prompt": "Use case: cinematic architectural and environment photography. Asset type: Lovioa secondary-category reference image for Landscape & Exhibition / Nature. Create an original AI-generated visual that clearly represents nature within landscape & exhibition. Subject and direction: Nature, nature, forest, mountain, ocean. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 175818,
+      "imageUrl": "/assets/subcategories/landscape/nature.webp"
+    },
+    {
+      "category": "landscape",
+      "subcategory": "city",
+      "prompt": "Use case: cinematic architectural and environment photography. Asset type: Lovioa secondary-category reference image for Landscape & Exhibition / Cityscape. Create an original AI-generated visual that clearly represents cityscape within landscape & exhibition. Subject and direction: Cityscape, city, urban, skyline, 城市. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "error": "",
+      "imageBytes": 1882163
+    },
+    {
+      "category": "landscape",
+      "subcategory": "travel",
+      "prompt": "Use case: cinematic architectural and environment photography. Asset type: Lovioa secondary-category reference image for Landscape & Exhibition / Travel. Create an original AI-generated visual that clearly represents travel within landscape & exhibition. Subject and direction: Travel, travel, destination, vacation, 旅行. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 122854,
+      "imageUrl": "/assets/subcategories/landscape/travel.webp"
+    },
+    {
+      "category": "landscape",
+      "subcategory": "garden",
+      "prompt": "Use case: cinematic architectural and environment photography. Asset type: Lovioa secondary-category reference image for Landscape & Exhibition / Landscape Design. Create an original AI-generated visual that clearly represents landscape design within landscape & exhibition. Subject and direction: Landscape Design, landscape, garden, park, 景观. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 271630,
+      "imageUrl": "/assets/subcategories/landscape/garden.webp"
+    },
+    {
+      "category": "landscape",
+      "subcategory": "exhibition",
+      "prompt": "Use case: cinematic architectural and environment photography. Asset type: Lovioa secondary-category reference image for Landscape & Exhibition / Exhibition. Create an original AI-generated visual that clearly represents exhibition within landscape & exhibition. Subject and direction: Exhibition, exhibition, museum, gallery, 展陈. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 141216,
+      "imageUrl": "/assets/subcategories/landscape/exhibition.webp"
+    },
+    {
+      "category": "real-photo",
+      "subcategory": "portrait",
+      "prompt": "Use case: original editorial photography. Asset type: Lovioa secondary-category reference image for Real Photos / People. Create an original AI-generated visual that clearly represents people within real photos. Subject and direction: People, portrait, people, 人物, 人像. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "error": "",
+      "imageBytes": 76580
+    },
+    {
+      "category": "real-photo",
+      "subcategory": "product",
+      "prompt": "Use case: original editorial photography. Asset type: Lovioa secondary-category reference image for Real Photos / Products. Create an original AI-generated visual that clearly represents products within real photos. Subject and direction: Products, product, packshot, 商品, 产品. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 105706,
+      "imageUrl": "/assets/subcategories/real-photo/product.webp"
+    },
+    {
+      "category": "real-photo",
+      "subcategory": "food",
+      "prompt": "Use case: original editorial photography. Asset type: Lovioa secondary-category reference image for Real Photos / Food. Create an original AI-generated visual that clearly represents food within real photos. Subject and direction: Food, food, drink, restaurant, 美食. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 164630,
+      "imageUrl": "/assets/subcategories/real-photo/food.webp"
+    },
+    {
+      "category": "real-photo",
+      "subcategory": "travel",
+      "prompt": "Use case: original editorial photography. Asset type: Lovioa secondary-category reference image for Real Photos / Travel. Create an original AI-generated visual that clearly represents travel within real photos. Subject and direction: Travel, travel, destination, 旅行, 旅拍. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 1,
+      "imageBytes": 178612,
+      "imageUrl": "/assets/subcategories/real-photo/travel.webp"
+    },
+    {
+      "category": "real-photo",
+      "subcategory": "documentary",
+      "prompt": "Use case: original editorial photography. Asset type: Lovioa secondary-category reference image for Real Photos / Documentary. Create an original AI-generated visual that clearly represents documentary within real photos. Subject and direction: Documentary, documentary, document, 纪实, 人文. Composition: square 1:1 composition, strong focal subject, clean framing, polished visual hierarchy, suitable for a prompt gallery card. Style: distinctive, contemporary, premium, natural detail, coherent lighting, no stock-photo look. Constraints: no readable text, no logos, no trademarks, no watermark, no interface chrome, no copied composition, no recognizable brand, no collage artifacts.",
+      "status": "ok",
+      "attempts": 2,
+      "imageBytes": 108162,
+      "imageUrl": "/assets/subcategories/real-photo/documentary.webp"
+    },
+    {
+      "category": "film-drama",
+      "subcategory": "characters",
+      "prompt": "Original film and animation drama character design reference sheet: a cinematic East Asian female investigative journalist in a rain-soaked charcoal trench coat, short wet hair, recorder and worn leather shoulder bag, front three-quarter pose with front, side, and back turnaround views, cold blue-gray background, realistic animation concept art, no readable text, logos, or watermark.",
+      "status": "ok",
+      "attempts": 1,
+      "error": "",
+      "imageBytes": 144120,
+      "imageUrl": "/assets/subcategories/film-drama/characters.webp"
+    },
+    {
+      "category": "film-drama",
+      "subcategory": "environments",
+      "prompt": "Original film and animation drama environment design: an abandoned old theater in heavy rain, one dim red marquee light, wet stone steps, broken poster frames with no readable text, distant tram glow, cinematic wide composition, cold blue-gray palette with a restrained red focal accent, atmospheric concept art, no watermark.",
+      "status": "ok",
+      "attempts": 1,
+      "error": "",
+      "imageBytes": 231014,
+      "imageUrl": "/assets/subcategories/film-drama/environments.webp"
+    },
+    {
+      "category": "film-drama",
+      "subcategory": "storyboards",
+      "prompt": "Original film and animation drama storyboard reference sheet: four sequential cinematic panels of two old friends meeting in a late-night convenience store during rain, exterior establishing shot, door entrance, eye-line close-up, tense two-shot, clear staging and camera direction, no dialogue text, no watermark.",
+      "status": "ok",
+      "attempts": 1,
+      "error": "",
+      "imageBytes": 338812,
+      "imageUrl": "/assets/subcategories/film-drama/storyboards.webp"
+    },
+    {
+      "category": "film-drama",
+      "subcategory": "keyframes",
+      "prompt": "Original film and animation drama keyframe: a lone ancient swordsman draws a blade beneath a dark red lunar eclipse at a mountain gate, wind pulling the cloak and hair ribbon, leaves and dust frozen in motion, low-angle cinematic composition, ink-wash animation concept art with controlled detail, no readable text or watermark.",
+      "status": "ok",
+      "attempts": 1,
+      "error": "",
+      "imageBytes": 148518,
+      "imageUrl": "/assets/subcategories/film-drama/keyframes.webp"
+    },
+    {
+      "category": "film-drama",
+      "subcategory": "posters",
+      "prompt": "Original film and animation drama poster visual: a foggy old harbor, distant lighthouse, a lone figure at the end of a pier, a rain-soaked letter in the foreground, cinematic mystery composition with clean negative space for later typesetting, cold gray-blue palette with a restrained red accent, no readable title, logo, or watermark.",
+      "status": "ok",
+      "attempts": 1,
+      "error": "",
+      "imageBytes": 118682,
+      "imageUrl": "/assets/subcategories/film-drama/posters.webp"
+    },
+    {
+      "category": "film-drama",
+      "subcategory": "worldbuilding",
+      "prompt": "Original film and animation drama worldbuilding concept sheet: a connected visual system for an atmospheric story world, combining a foggy coastal city map, layered districts, transit routes, landmark silhouettes, and three cinematic environment insets. Premium production design, coherent geography, moody blue-gray, rust red, and warm amber palette, clean editorial composition, no readable text, logos, watermark, or existing IP.",
+      "status": "ok",
+      "attempts": 1,
+      "error": "",
+      "imageBytes": 249438,
+      "imageUrl": "/assets/subcategories/film-drama/worldbuilding.webp"
+    },
+    {
+      "category": "film-drama",
+      "subcategory": "costume-props",
+      "prompt": "Original film and animation drama costume and prop design board: a curated spread of character wardrobe, signature handheld objects, material swatches, worn surfaces, practical mechanisms, and one full-body figure for scale. Cinematic East Asian fantasy and modern mystery influences without copying any existing IP, tactile materials, controlled lighting, premium concept art, no readable text, logos, or watermark.",
+      "status": "ok",
+      "attempts": 1,
+      "error": "",
+      "imageBytes": 206280,
+      "imageUrl": "/assets/subcategories/film-drama/costume-props.webp"
+    },
+    {
+      "category": "film-drama",
+      "subcategory": "shot-language",
+      "prompt": "Original film and animation drama cinematography board: a sequence of distinct camera languages shown as clean cinematic panels, including a rain reflection shot, deep corridor perspective, subjective close-up, two-person symmetrical composition, and a wide negative-space frame. Clear staging, expressive lens choices, polished storyboard-concept hybrid, blue night and warm practical light, no readable text or watermark.",
+      "status": "ok",
+      "attempts": 1,
+      "error": "",
+      "imageBytes": 128896,
+      "imageUrl": "/assets/subcategories/film-drama/shot-language.webp"
+    },
+    {
+      "category": "film-drama",
+      "subcategory": "action-design",
+      "prompt": "Original film and animation drama action design board: dynamic sequential poses showing a cloaked swordsman drawing a blade, a runner crossing rain, a rescue mech bracing in surf, and a weightless corridor chase. Strong anatomy and believable weight, clear motion arcs, debris and cloth movement, cinematic keyframe energy, rich blue, red, and amber lighting, no weapons gore, readable text, logos, or watermark.",
+      "status": "ok",
+      "attempts": 1,
+      "error": "",
+      "imageBytes": 330594,
+      "imageUrl": "/assets/subcategories/film-drama/action-design.webp"
+    },
+    {
+      "category": "film-drama",
+      "subcategory": "lighting-color",
+      "prompt": "Original film and animation drama lighting and color script board: five cinematic scenes connected by a deliberate color progression from blue-orange rain, red-black eclipse, indigo-gold lanterns, cold mint space greenhouse, to coral sunset ocean. Strong value structure, practical light sources, atmospheric depth, premium film color design, clean composition, no readable text, logos, or watermark.",
+      "status": "ok",
+      "attempts": 1,
+      "error": "",
+      "imageBytes": 277782,
+      "imageUrl": "/assets/subcategories/film-drama/lighting-color.webp"
+    }
+  ]
+}

@@ -1,0 +1,362 @@
+{
+  "ecommerce/womenswear": {
+    "imageUrl": "/assets/subcategories/ecommerce/womenswear.webp",
+    "source": "gallery_gen-7c2450dcf46c0b73.png",
+    "score": 30
+  },
+  "ecommerce/menswear": {
+    "imageUrl": "/assets/subcategories/ecommerce/menswear.webp",
+    "source": "gallery_gen-72e2aee5d88654b9.png",
+    "score": 11
+  },
+  "ecommerce/kidswear": {
+    "imageUrl": "/assets/subcategories/ecommerce/kidswear.webp",
+    "source": "gallery_gen-2d3014abf7d7dcd1.png",
+    "score": 0
+  },
+  "ecommerce/shoes": {
+    "imageUrl": "/assets/subcategories/ecommerce/shoes.webp",
+    "source": "gallery_gen-42367fe0a9165bd6.png",
+    "score": 18
+  },
+  "ecommerce/bags": {
+    "imageUrl": "/assets/subcategories/ecommerce/bags.webp",
+    "source": "gallery_gen-7ae311c6b9d9548e.png",
+    "score": 0
+  },
+  "ecommerce/accessories": {
+    "imageUrl": "/assets/subcategories/ecommerce/accessories.webp",
+    "source": "gallery_gen-e7335177d4fce9cd.png",
+    "score": 0
+  },
+  "ecommerce/home-textiles": {
+    "imageUrl": "/assets/subcategories/ecommerce/home-textiles.webp",
+    "source": "gallery_gen-c16c650e8011ee34.png",
+    "score": 0
+  },
+  "ecommerce/retouching": {
+    "imageUrl": "/assets/subcategories/ecommerce/retouching.webp",
+    "source": "gallery_gen-989611ec3629c7e8.png",
+    "score": 4
+  },
+  "ecommerce/tech": {
+    "imageUrl": "/assets/subcategories/ecommerce/tech.webp",
+    "source": "gallery_gen-0815237d87c4a8a1.png",
+    "score": 7
+  },
+  "ecommerce/beauty": {
+    "imageUrl": "/assets/subcategories/ecommerce/beauty.webp",
+    "source": "gallery_gen-32cd8a7273bd4ecb.png",
+    "score": 28
+  },
+  "ecommerce/food": {
+    "imageUrl": "/assets/subcategories/ecommerce/food.webp",
+    "source": "gallery_gen-01e90c4fc670553b.png",
+    "score": 0
+  },
+  "ecommerce/other": {
+    "imageUrl": "/assets/subcategories/ecommerce/other.webp",
+    "source": "gallery_gen-c9bac2df5d3d4c91.png",
+    "score": 14
+  },
+  "posters/campaign": {
+    "imageUrl": "/assets/subcategories/posters/campaign.webp",
+    "source": "gallery_gen-2b92755dde92ffa0.png",
+    "score": 51
+  },
+  "posters/brand": {
+    "imageUrl": "/assets/subcategories/posters/brand.webp",
+    "source": "gallery_gen-960f934c4b5788fc.png",
+    "score": 65
+  },
+  "posters/social": {
+    "imageUrl": "/assets/subcategories/posters/social.webp",
+    "source": "gallery_gen-9ec3decaa182cef7.png",
+    "score": 30
+  },
+  "posters/illustration": {
+    "imageUrl": "/assets/subcategories/posters/illustration.webp",
+    "source": "gallery_gen-05120b26015ed0b3.png",
+    "score": 30
+  },
+  "posters/editorial": {
+    "imageUrl": "/assets/subcategories/posters/editorial.webp",
+    "source": "gallery_gen-0954ad33cdb4a459.png",
+    "score": 58
+  },
+  "infographic/data": {
+    "imageUrl": "/assets/subcategories/infographic/data.webp",
+    "source": "gallery_gen-d5fa89ba06de3425.png",
+    "score": 30
+  },
+  "infographic/process": {
+    "imageUrl": "/assets/subcategories/infographic/process.webp",
+    "source": "gallery_gen-7f12c61e80b3cf7d.png",
+    "score": 30
+  },
+  "infographic/timeline": {
+    "imageUrl": "/assets/subcategories/infographic/timeline.webp",
+    "source": "gallery_gen-14c4028dc7f89d17.png",
+    "score": 30
+  },
+  "infographic/comparison": {
+    "imageUrl": "/assets/subcategories/infographic/comparison.webp",
+    "source": "gallery_gen-b78798e797c0a44d.png",
+    "score": 30
+  },
+  "infographic/knowledge": {
+    "imageUrl": "/assets/subcategories/infographic/knowledge.webp",
+    "source": "gallery_gen-63cdec8d026d8656.png",
+    "score": 30
+  },
+  "presentation/business": {
+    "imageUrl": "/assets/subcategories/presentation/business.webp",
+    "source": "gallery_gen-a9e2c70c13a43230.png",
+    "score": 30
+  },
+  "presentation/report": {
+    "imageUrl": "/assets/subcategories/presentation/report.webp",
+    "source": "gallery_gen-7a89ce7f4133e53a.png",
+    "score": 30
+  },
+  "presentation/education": {
+    "imageUrl": "/assets/subcategories/presentation/education.webp",
+    "source": "gallery_gen-303c65f476fb9460.png",
+    "score": 30
+  },
+  "presentation/portfolio": {
+    "imageUrl": "/assets/subcategories/presentation/portfolio.webp",
+    "source": "gallery_gen-629953454f88c80c.png",
+    "score": 30
+  },
+  "presentation/template": {
+    "imageUrl": "/assets/subcategories/presentation/template.webp",
+    "source": "gallery_gen-b6f54f883a17da26.png",
+    "score": 30
+  },
+  "visual-art/3d": {
+    "imageUrl": "/assets/subcategories/visual-art/3d.webp",
+    "source": "gallery_gen-d0790e8d5aa66e8a.png",
+    "score": 8
+  },
+  "visual-art/concept": {
+    "imageUrl": "/assets/subcategories/visual-art/concept.webp",
+    "source": "gallery_gen-494e019f9735566f.png",
+    "score": 16
+  },
+  "visual-art/character": {
+    "imageUrl": "/assets/subcategories/visual-art/character.webp",
+    "source": "gallery_gen-449f8d04d22a7b88.png",
+    "score": 4
+  },
+  "visual-art/environment": {
+    "imageUrl": "/assets/subcategories/visual-art/environment.webp",
+    "source": "gallery_gen-5626afd27db6cf15.png",
+    "score": 4
+  },
+  "visual-art/abstract": {
+    "imageUrl": "/assets/subcategories/visual-art/abstract.webp",
+    "source": "gallery_gen-25bed523ba249247.png",
+    "score": 0
+  },
+  "architecture/interior": {
+    "imageUrl": "/assets/subcategories/architecture/interior.webp",
+    "source": "gallery_gen-583ba282f7b76531.png",
+    "score": 14
+  },
+  "architecture/exterior": {
+    "imageUrl": "/assets/subcategories/architecture/exterior.webp",
+    "source": "gallery_gen-8a086f6c68c9b521.png",
+    "score": 0
+  },
+  "architecture/commercial": {
+    "imageUrl": "/assets/subcategories/architecture/commercial.webp",
+    "source": "gallery_gen-01b68d884e4ccf16.png",
+    "score": 0
+  },
+  "architecture/residential": {
+    "imageUrl": "/assets/subcategories/architecture/residential.webp",
+    "source": "gallery_gen-fd5e54cf40867f30.png",
+    "score": 0
+  },
+  "architecture/exhibition": {
+    "imageUrl": "/assets/subcategories/architecture/exhibition.webp",
+    "source": "gallery_gen-2a1bd0d643614f92.png",
+    "score": 0
+  },
+  "industrial/product": {
+    "imageUrl": "/assets/subcategories/industrial/product.webp",
+    "source": "gallery_gen-9aacb3d37e07d904.png",
+    "score": 7
+  },
+  "industrial/packaging": {
+    "imageUrl": "/assets/subcategories/industrial/packaging.webp",
+    "source": "gallery_gen-5405890f3d3bddb2.png",
+    "score": 0
+  },
+  "industrial/mockup": {
+    "imageUrl": "/assets/subcategories/industrial/mockup.webp",
+    "source": "gallery_gen-bb1ae61636f7c986.png",
+    "score": 0
+  },
+  "industrial/electronics": {
+    "imageUrl": "/assets/subcategories/industrial/electronics.webp",
+    "source": "gallery_gen-541af53e0e66b842.png",
+    "score": 0
+  },
+  "industrial/industrial": {
+    "imageUrl": "/assets/subcategories/industrial/industrial.webp",
+    "source": "gallery_gen-54a88a1ae0e66e68.png",
+    "score": 0
+  },
+  "ui/mobile": {
+    "imageUrl": "/assets/subcategories/ui/mobile.webp",
+    "source": "gallery_gen-c7a93526791c6a9e.png",
+    "score": 12
+  },
+  "ui/web": {
+    "imageUrl": "/assets/subcategories/ui/web.webp",
+    "source": "gallery_gen-3bbdd8e3d98d1371.png",
+    "score": 12
+  },
+  "ui/dashboard": {
+    "imageUrl": "/assets/subcategories/ui/dashboard.webp",
+    "source": "gallery_gen-64096b0952b37881.png",
+    "score": 12
+  },
+  "ui/ecommerce": {
+    "imageUrl": "/assets/subcategories/ui/ecommerce.webp",
+    "source": "gallery_gen-447ffc975b480523.png",
+    "score": 0
+  },
+  "ui/system": {
+    "imageUrl": "/assets/subcategories/ui/system.webp",
+    "source": "gallery_gen-56597a401361b031.png",
+    "score": 0
+  },
+  "people/portrait": {
+    "imageUrl": "/assets/subcategories/people/portrait.webp",
+    "source": "gallery_gen-ce431540b8285831.png",
+    "score": 44
+  },
+  "people/fashion": {
+    "imageUrl": "/assets/subcategories/people/fashion.webp",
+    "source": "gallery_gen-fb126ba2ded15436.png",
+    "score": 30
+  },
+  "people/beauty": {
+    "imageUrl": "/assets/subcategories/people/beauty.webp",
+    "source": "gallery_gen-5ab19d9e21f425c4.png",
+    "score": 21
+  },
+  "people/street": {
+    "imageUrl": "/assets/subcategories/people/street.webp",
+    "source": "gallery_gen-ed76aa716a61f0c9.png",
+    "score": 21
+  },
+  "people/avatar": {
+    "imageUrl": "/assets/subcategories/people/avatar.webp",
+    "source": "gallery_gen-3be41c5cf4aef52c.png",
+    "score": 0
+  },
+  "landscape/nature": {
+    "imageUrl": "/assets/subcategories/landscape/nature.webp",
+    "source": "gallery_gen-ed76aa716a61f0c9.png",
+    "score": 95
+  },
+  "landscape/city": {
+    "imageUrl": "/assets/subcategories/landscape/city.webp",
+    "source": "gallery_gen-2a1bd0d643614f92.png",
+    "score": 48
+  },
+  "landscape/travel": {
+    "imageUrl": "/assets/subcategories/landscape/travel.webp",
+    "source": "gallery_gen-2a1bd0d643614f92.png",
+    "score": 44
+  },
+  "landscape/garden": {
+    "imageUrl": "/assets/subcategories/landscape/garden.webp",
+    "source": "gallery_gen-bb1ae61636f7c986.png",
+    "score": 62
+  },
+  "landscape/exhibition": {
+    "imageUrl": "/assets/subcategories/landscape/exhibition.webp",
+    "source": "gallery_gen-2a1bd0d643614f92.png",
+    "score": 44
+  },
+  "real-photo/portrait": {
+    "imageUrl": "/assets/subcategories/real-photo/portrait.webp",
+    "source": "gallery_gen-2d3014abf7d7dcd1.png",
+    "score": 52
+  },
+  "real-photo/product": {
+    "imageUrl": "/assets/subcategories/real-photo/product.webp",
+    "source": "gallery_gen-2d3014abf7d7dcd1.png",
+    "score": 30
+  },
+  "real-photo/food": {
+    "imageUrl": "/assets/subcategories/real-photo/food.webp",
+    "source": "gallery_gen-2d3014abf7d7dcd1.png",
+    "score": 30
+  },
+  "real-photo/travel": {
+    "imageUrl": "/assets/subcategories/real-photo/travel.webp",
+    "source": "gallery_gen-2d3014abf7d7dcd1.png",
+    "score": 30
+  },
+  "real-photo/documentary": {
+    "imageUrl": "/assets/subcategories/real-photo/documentary.webp",
+    "source": "gallery_gen-3bbdd8e3d98d1371.png",
+    "score": 58
+  },
+  "film-drama/characters": {
+    "imageUrl": "/assets/subcategories/film-drama/characters.webp",
+    "source": "generated-1c4d7f92-4158-494c-a6da-199617212ba4.png",
+    "score": 0
+  },
+  "film-drama/environments": {
+    "imageUrl": "/assets/subcategories/film-drama/environments.webp",
+    "source": "generated-df0d5f5d-888d-4c6d-b8b4-5b99023a8271.png",
+    "score": 0
+  },
+  "film-drama/storyboards": {
+    "imageUrl": "/assets/subcategories/film-drama/storyboards.webp",
+    "source": "generated-4a8d88a2-e585-4675-93d2-6c78d290bd87.png",
+    "score": 0
+  },
+  "film-drama/keyframes": {
+    "imageUrl": "/assets/subcategories/film-drama/keyframes.webp",
+    "source": "generated-35ed6468-5479-44b1-b6b0-677b4b4a1957.png",
+    "score": 0
+  },
+  "film-drama/posters": {
+    "imageUrl": "/assets/subcategories/film-drama/posters.webp",
+    "source": "generated-736f20c6-4eeb-4e0a-bac0-31e8d13bf12b.png",
+    "score": 0
+  },
+  "film-drama/worldbuilding": {
+    "imageUrl": "/assets/subcategories/film-drama/worldbuilding.webp",
+    "source": "generated-f5e27947-b22d-46ed-9cc6-013212cb02f0.png",
+    "score": 0
+  },
+  "film-drama/costume-props": {
+    "imageUrl": "/assets/subcategories/film-drama/costume-props.webp",
+    "source": "generated-aada6922-b631-48b6-8fcb-a0df6c08089d.png",
+    "score": 0
+  },
+  "film-drama/shot-language": {
+    "imageUrl": "/assets/subcategories/film-drama/shot-language.webp",
+    "source": "generated-3f938862-ba15-4f09-b5c9-1992b2bd25c8.png",
+    "score": 0
+  },
+  "film-drama/action-design": {
+    "imageUrl": "/assets/subcategories/film-drama/action-design.webp",
+    "source": "generated-dcad1d45-c584-4731-b0c1-42f59a485c81.png",
+    "score": 0
+  },
+  "film-drama/lighting-color": {
+    "imageUrl": "/assets/subcategories/film-drama/lighting-color.webp",
+    "source": "generated-edf4de02-d6e4-4f65-8515-a997751b4b1d.png",
+    "score": 0
+  }
+}

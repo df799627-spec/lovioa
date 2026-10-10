@@ -1,0 +1,115 @@
+.saved-page {
+  padding-top: calc(var(--nav-height) + var(--space-12));
+  padding-bottom: var(--space-20);
+  min-height: 100vh;
+}
+
+.saved-page__header {
+  margin-bottom: var(--space-6);
+}
+
+.saved-page__filters {
+  margin-bottom: var(--space-8);
+}
+
+.saved-page__title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 400;
+  color: var(--color-text);
+  margin-bottom: var(--space-3);
+  letter-spacing: -0.02em;
+}
+
+.saved-page__subtitle {
+  font-size: 0.95rem;
+  color: var(--color-secondary);
+  font-weight: 300;
+}
+
+.saved-page__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-5);
+}
+
+/* Empty state */
+.saved-page__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--space-20) var(--space-6);
+}
+
+.saved-page__empty-icon {
+  margin-bottom: var(--space-6);
+  opacity: 0.35;
+}
+
+.saved-page__empty-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: var(--color-text);
+  margin-bottom: var(--space-3);
+}
+
+.saved-page__empty-text {
+  font-size: 0.9rem;
+  color: var(--color-secondary);
+  max-width: 320px;
+  font-weight: 300;
+  line-height: 1.6;
+  margin-bottom: var(--space-8);
+}
+
+.saved-page__explore-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-6);
+  background: var(--color-accent);
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: var(--radius-full);
+  text-decoration: none;
+  transition: background var(--transition-fast), transform var(--transition-fast);
+  letter-spacing: 0.01em;
+}
+
+.saved-page__explore-btn:hover {
+  background: var(--color-accent-hover);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 1024px) {
+  .saved-page__grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .saved-page__grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .saved-page {
+    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .saved-page__title {
+    font-size: clamp(1.6rem, 6vw, 2rem);
+  }
+
+  .saved-page__filters {
+    margin-bottom: var(--space-6);
+  }
+}
+
+@media (max-width: 375px) {
+  .saved-page__grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}

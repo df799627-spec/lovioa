@@ -1,0 +1,82 @@
+/* ════════════════════════════════════════════════════════
+   SKELETON CARD — matches PromptCard portrait ratio
+   ════════════════════════════════════════════════════════ */
+
+.skeleton-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+/* Portrait ratio matching PromptCard */
+.skeleton-card__image {
+  aspect-ratio: 2 / 3;
+  width: 100%;
+}
+
+.skeleton-card__footer {
+  padding: 14px 16px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.skeleton-card__author {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.skeleton-card__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.skeleton-card__author-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.skeleton-card__name {
+  width: 80px;
+  height: 12px;
+  border-radius: 6px;
+}
+
+.skeleton-card__cat {
+  width: 56px;
+  height: 10px;
+  border-radius: 5px;
+}
+
+.skeleton-card__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.skeleton-card__action {
+  width: 50px;
+  height: 24px;
+  border-radius: 100px;
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    #EDE9E4 0%,
+    #E5DDD3 40%,
+    #EDE9E4 60%,
+    #E5DDD3 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
