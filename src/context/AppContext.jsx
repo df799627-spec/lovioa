@@ -1,11 +1,17 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { api } from '../services/api';
-import { PROMPTS as LEGACY_SEED_PROMPTS } from '../data/prompts';
-import { COMMERCIAL_PROMPTS } from '../data/commercialPrompts.generated';
-
-const SEED_PROMPTS = [...LEGACY_SEED_PROMPTS, ...COMMERCIAL_PROMPTS];
+import { useLocation } from 'react-router-dom';
+import { api, filterRealGeneratedPrompts, normalizeApiPayload } from '../services/api';
 
 const AppContext = createContext(null);
+let commercialPromptsPromise;
+
+function loadCommercialPrompts() {
+  if (!commercialPromptsPromise) {
+    commercialPromptsPromise = import('../data/commercialPrompts.generated')
+      .then(module => Array.isArray(module.COMMERCIAL_PROMPTS) ? module.COMMERCIAL_PROMPTS : []);
+  }
+  return commercialPromptsPromise;
+}
 
 const LS_KEYS = {
   PROMPTS: 'pf_prompts',
@@ -27,6 +33,51 @@ function loadLS(key, fallback) {
   try { const val = JSON.parse(localStorage.getItem(key)); return val == null ? fallback : val; }
   catch { return fallback; }
 }
+function loadToken() {
+  try {
+    const raw = localStorage.getItem(LS_KEYS.TOKEN);
+    if (!raw) return '';
+    try { return JSON.parse(raw) || ''; } catch { return raw; }
+  } catch {
+    return '';
+  }
+}
+
+function loadCachedUserId() {
+  try {
+    const user = JSON.parse(localStorage.getItem(LS_KEYS.USER) || 'null');
+    return String(user?.id || 'anonymous');
+  } catch {
+    return 'anonymous';
+  }
+}
+
+function getUserStorageKey(key, userId) {
+  return `${key}:${String(userId || 'anonymous')}`;
+}
+
+function loadUserLS(key, userId, fallback) {
+  const scopedKey = getUserStorageKey(key, userId);
+  try {
+    if (localStorage.getItem(scopedKey) !== null) {
+      return loadLS(scopedKey, fallback);
+    }
+    if (String(userId || '') !== 'anonymous' && localStorage.getItem(key) !== null) {
+      const legacyValue = loadLS(key, fallback);
+      saveLS(scopedKey, legacyValue);
+      removeLS(key);
+      return legacyValue;
+    }
+  } catch {
+    return fallback;
+  }
+  return fallback;
+}
+
+function saveUserLS(key, userId, value) {
+  saveLS(getUserStorageKey(key, userId), value);
+}
+
 function saveLS(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)); }
   catch { /* quota exceeded — silently ignore */ }
@@ -35,7 +86,6 @@ function removeLS(key) {
   try { localStorage.removeItem(key); } catch {}
 }
 
-// ── Seed prompt deduplication ────────────────────────────────────────────────
 function dedupePrompts(items = []) {
   const byKey = new Map();
   for (const item of items) {
@@ -46,13 +96,19 @@ function dedupePrompts(items = []) {
   return [...byKey.values()];
 }
 
-function mergePrompts(seedPrompts, userPrompts, savedIds, likedIds) {
+function filterLegacyCommercialPrompts(items = []) {
+  return (Array.isArray(items) ? items : [])
+    .filter(prompt => !String(prompt?.id || '').startsWith('commercial-'));
+}
+
+function mergePrompts(sourcePrompts, userPrompts, savedIds, likedIds) {
   const savedSet = new Set(savedIds);
   const likedSet = new Set(likedIds);
+  const safeUserPrompts = filterLegacyCommercialPrompts(userPrompts);
 
   const merged = [
-    ...userPrompts.map(p => ({ ...p, saved: savedSet.has(p.id), liked: likedSet.has(p.id) })),
-    ...seedPrompts.filter(sp => !userPrompts.find(up => up.id === sp.id))
+    ...safeUserPrompts.map(p => ({ ...p, saved: savedSet.has(p.id), liked: likedSet.has(p.id) })),
+    ...sourcePrompts.filter(sp => !safeUserPrompts.find(up => up.id === sp.id))
       .map(p => ({ ...p, saved: savedSet.has(p.id), liked: likedSet.has(p.id) })),
   ];
   return dedupePrompts(merged);
@@ -89,26 +145,29 @@ function normalizeUser(raw) {
 }
 
 export function AppProvider({ children }) {
+  const location = useLocation();
   // ── Persistent state ──────────────────────────────────────────────────────
   const [prompts, setPrompts] = useState(() => {
     const rawPrompts = loadLS(LS_KEYS.PROMPTS, null);
-    const savedPrompts = Array.isArray(rawPrompts) ? rawPrompts : [];
-    const rawUserPrompts = loadLS(LS_KEYS.USER_PROMPTS, null);
-    const userPrompts = Array.isArray(rawUserPrompts) ? rawUserPrompts : [];
-    const rawSavedIds = loadLS(LS_KEYS.SAVED_IDS, null);
+    const savedPrompts = Array.isArray(rawPrompts) ? normalizeApiPayload(rawPrompts) : [];
+    const rawUserPrompts = loadUserLS(LS_KEYS.USER_PROMPTS, loadCachedUserId(), null);
+    const userPrompts = filterLegacyCommercialPrompts(normalizeApiPayload(rawUserPrompts));
+    const rawSavedIds = loadUserLS(LS_KEYS.SAVED_IDS, loadCachedUserId(), null);
     const savedIds = Array.isArray(rawSavedIds) ? rawSavedIds : [];
-    const rawLikedIds = loadLS(LS_KEYS.LIKED_IDS, null);
+    const rawLikedIds = loadUserLS(LS_KEYS.LIKED_IDS, loadCachedUserId(), null);
     const likedIds = Array.isArray(rawLikedIds) ? rawLikedIds : [];
-    if (savedPrompts.length > 0) {
-      return mergePrompts([...savedPrompts, ...COMMERCIAL_PROMPTS], userPrompts, savedIds, likedIds);
-    }
-    return mergePrompts(SEED_PROMPTS, userPrompts, savedIds, likedIds);
+    return mergePrompts(
+      filterRealGeneratedPrompts(savedPrompts),
+      userPrompts,
+      savedIds,
+      likedIds,
+    );
   });
   const [stats, setStats] = useState(() => {
     const rawStats = loadLS(LS_KEYS.STATS, null);
     if (rawStats && typeof rawStats === 'object') return rawStats;
     return {
-      promptsShared: Array.isArray(SEED_PROMPTS) ? SEED_PROMPTS.length : 0,
+      promptsShared: 0,
       imagesGenerated: 0,
       communitySize: 0,
     };
@@ -116,21 +175,41 @@ export function AppProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const [savedIds, setSavedIds] = useState(() => new Set(loadLS(LS_KEYS.SAVED_IDS, null) || []));
-  const [likedIds, setLikedIds] = useState(() => new Set(loadLS(LS_KEYS.LIKED_IDS, null) || []));
-  const [token, setToken] = useState(() => loadLS(LS_KEYS.TOKEN, '') || '');
-  const [currentUser, setCurrentUser] = useState(null);
+  const [savedIds, setSavedIds] = useState(() => new Set(
+    loadUserLS(LS_KEYS.SAVED_IDS, loadCachedUserId(), null) || [],
+  ));
+  const [likedIds, setLikedIds] = useState(() => new Set(
+    loadUserLS(LS_KEYS.LIKED_IDS, loadCachedUserId(), null) || [],
+  ));
+  const [token, setToken] = useState(loadToken);
+  const [currentUser, setCurrentUser] = useState(() => (
+    token ? normalizeUser(loadLS(LS_KEYS.USER, null)) : null
+  ));
   const [authReady, setAuthReady] = useState(() => !token);
-  const [generationHistory, setGenerationHistory] = useState(() => loadLS(LS_KEYS.HISTORY, null) || []);
-  const [userPrompts, setUserPrompts] = useState(() => loadLS(LS_KEYS.USER_PROMPTS, null) || []);
+  const [generationHistory, setGenerationHistory] = useState(() => (
+    normalizeApiPayload(loadUserLS(LS_KEYS.HISTORY, loadCachedUserId(), null)) || []
+  ));
+  const [generationJobs, setGenerationJobs] = useState([]);
+  const [userPrompts, setUserPrompts] = useState(() => (
+    filterLegacyCommercialPrompts(normalizeApiPayload(
+      loadUserLS(LS_KEYS.USER_PROMPTS, loadCachedUserId(), null),
+    ))
+  ));
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(() => (
+    loadUserLS(LS_KEYS.ONBOARDING_DONE, loadCachedUserId(), false) === true
+  ));
 
   // ── Billing state ─────────────────────────────────────────────────────────
   const [credits, setCredits] = useState(0);
   const [subscription, setSubscription] = useState(null);
 
   // ── Sync state → localStorage ─────────────────────────────────────────────
-  useEffect(() => { saveLS(LS_KEYS.SAVED_IDS, [...savedIds]); }, [savedIds]);
-  useEffect(() => { saveLS(LS_KEYS.LIKED_IDS, [...likedIds]); }, [likedIds]);
+  useEffect(() => {
+    if (currentUser?.id) saveUserLS(LS_KEYS.SAVED_IDS, currentUser.id, [...savedIds]);
+  }, [currentUser?.id, savedIds]);
+  useEffect(() => {
+    if (currentUser?.id) saveUserLS(LS_KEYS.LIKED_IDS, currentUser.id, [...likedIds]);
+  }, [currentUser?.id, likedIds]);
   useEffect(() => {
     if (currentUser) saveLS(LS_KEYS.USER, currentUser);
     else removeLS(LS_KEYS.USER);
@@ -139,8 +218,14 @@ export function AppProvider({ children }) {
     if (token) saveLS(LS_KEYS.TOKEN, token);
     else removeLS(LS_KEYS.TOKEN);
   }, [token]);
-  useEffect(() => { saveLS(LS_KEYS.HISTORY, generationHistory); }, [generationHistory]);
-  useEffect(() => { saveLS(LS_KEYS.USER_PROMPTS, userPrompts); }, [userPrompts]);
+  useEffect(() => {
+    if (currentUser?.id) saveUserLS(LS_KEYS.HISTORY, currentUser.id, generationHistory);
+  }, [currentUser?.id, generationHistory]);
+  useEffect(() => {
+    if (currentUser?.id) {
+      saveUserLS(LS_KEYS.USER_PROMPTS, currentUser.id, filterLegacyCommercialPrompts(userPrompts));
+    }
+  }, [currentUser?.id, userPrompts]);
 
   // A cached user is only a display hint. Validate the persisted token once
   // before treating the session as authenticated.
@@ -159,12 +244,19 @@ export function AppProvider({ children }) {
         setCurrentUser(user);
         setAuthReady(true);
       })
-      .catch(() => {
+      .catch(error => {
         if (cancelled) return;
+        if (error?.status !== 401) {
+          setAuthReady(true);
+          return;
+        }
         setToken('');
         setCurrentUser(null);
         setGenerationHistory([]);
-        removeLS(LS_KEYS.HISTORY);
+        setUserPrompts([]);
+        setSavedIds(new Set());
+        setLikedIds(new Set());
+        setHasCompletedOnboarding(false);
         setAuthReady(true);
       });
 
@@ -176,7 +268,10 @@ export function AppProvider({ children }) {
       setToken('');
       setCurrentUser(null);
       setGenerationHistory([]);
-      removeLS(LS_KEYS.HISTORY);
+      setUserPrompts([]);
+      setSavedIds(new Set());
+      setLikedIds(new Set());
+      setHasCompletedOnboarding(false);
       setAuthReady(true);
     };
     window.addEventListener('pf-auth-invalid', clearInvalidAuth);
@@ -190,39 +285,104 @@ export function AppProvider({ children }) {
     saveLS(LS_KEYS.API_KEY, key);
   }, []);
 
-  // ── Load prompts from API (with local fallback) ────────────────────────────
+  // ── Load prompts from API ─────────────────────────────────────────────────
   const loadPrompts = useCallback(async (params = {}) => {
     setLoading(true);
     setError(null);
     try {
-      const [data, statsData] = await Promise.all([api.getPrompts(params), api.getStats()]);
-
-      const up = loadLS(LS_KEYS.USER_PROMPTS, []);
+      const viewerId = String(currentUser?.id || '');
+      const [data, statsData, userPromptsData, preferencesData, commercialPrompts] = await Promise.all([
+        api.getGeneratedPrompts(params),
+        api.getStats(),
+        viewerId ? api.getUserPrompts(viewerId) : Promise.resolve({ prompts: [] }),
+        viewerId ? api.getPromptPreferences() : Promise.resolve({ likedIds: [], savedIds: [] }),
+        loadCommercialPrompts(),
+      ]);
+      let nextSavedIds = viewerId
+        ? new Set(Array.isArray(preferencesData?.savedIds) ? preferencesData.savedIds : [])
+        : new Set();
+      let nextLikedIds = viewerId
+        ? new Set(Array.isArray(preferencesData?.likedIds) ? preferencesData.likedIds : [])
+        : new Set();
+      const up = viewerId
+        ? filterLegacyCommercialPrompts(userPromptsData?.prompts || [])
+        : [];
+      let preferenceMigrationError = null;
+      if (viewerId) {
+        const migrationKey = getUserStorageKey('pf_prompt_preferences_migrated', viewerId);
+        const alreadyMigrated = loadLS(migrationKey, false) === true;
+        const legacySavedIds = loadUserLS(LS_KEYS.SAVED_IDS, viewerId, []);
+        const legacyLikedIds = loadUserLS(LS_KEYS.LIKED_IDS, viewerId, []);
+        if (!alreadyMigrated && nextSavedIds.size === 0 && nextLikedIds.size === 0
+          && (legacySavedIds.length > 0 || legacyLikedIds.length > 0)) {
+          try {
+            const imported = await api.importPromptPreferences({
+              savedIds: legacySavedIds,
+              likedIds: legacyLikedIds,
+            });
+            nextSavedIds = new Set(imported?.savedIds || []);
+            nextLikedIds = new Set(imported?.likedIds || []);
+            saveLS(migrationKey, true);
+          } catch (migrationError) {
+            preferenceMigrationError = migrationError;
+          }
+        } else if (!alreadyMigrated) {
+          saveLS(migrationKey, true);
+        }
+      }
+      if (preferenceMigrationError) {
+        setError(preferenceMigrationError.message || '收藏和点赞迁移失败');
+      }
+      setSavedIds(nextSavedIds);
+      setLikedIds(nextLikedIds);
+      setUserPrompts(up);
       const merged = mergePrompts(
-        [...(data.prompts || []), ...COMMERCIAL_PROMPTS],
+        [...(data.prompts || []), ...commercialPrompts],
         up,
-        [...savedIds],
-        [...likedIds],
+        [...nextSavedIds],
+        [...nextLikedIds],
       );
 
       setPrompts(merged);
       setStats(statsData);
-      saveLS(LS_KEYS.PROMPTS, dedupePrompts([...(data.prompts || []), ...COMMERCIAL_PROMPTS]));
+      saveLS(LS_KEYS.PROMPTS, filterRealGeneratedPrompts(data.prompts || []));
       saveLS(LS_KEYS.STATS, statsData);
     } catch (err) {
-      // Network failure — keep using cached prompts
       setError(err.message);
-      const up = loadLS(LS_KEYS.USER_PROMPTS, []);
-      const cached = dedupePrompts(loadLS(LS_KEYS.PROMPTS, SEED_PROMPTS));
-      const merged = mergePrompts(cached, up, [...savedIds], [...likedIds]);
+      const viewerId = String(currentUser?.id || '');
+      const up = filterLegacyCommercialPrompts(
+        viewerId
+          ? loadUserLS(LS_KEYS.USER_PROMPTS, viewerId, [])
+          : [],
+      );
+      const cached = filterRealGeneratedPrompts(loadLS(LS_KEYS.PROMPTS, []));
+      const cachedSavedIds = loadUserLS(LS_KEYS.SAVED_IDS, viewerId, []);
+      const cachedLikedIds = loadUserLS(LS_KEYS.LIKED_IDS, viewerId, []);
+      const commercialPrompts = await loadCommercialPrompts().catch(() => []);
+      const merged = mergePrompts(
+        [...cached, ...commercialPrompts],
+        up,
+        Array.isArray(cachedSavedIds) ? cachedSavedIds : [],
+        Array.isArray(cachedLikedIds) ? cachedLikedIds : [],
+      );
       setPrompts(merged);
     } finally {
       setLoading(false);
     }
-  }, [savedIds, likedIds]);
+  }, [currentUser]);
 
-  // Initial load
-  useEffect(() => { loadPrompts(); }, []);
+  // Only routes that render prompt content need the large public prompt feed.
+  const needsPromptFeed = (
+    location.pathname === '/'
+    || location.pathname.startsWith('/saved')
+    || location.pathname.startsWith('/upload')
+    || location.pathname.startsWith('/prompt/')
+  );
+
+  // Load public data after auth restoration so server-side user preferences are included.
+  useEffect(() => {
+    if (authReady && needsPromptFeed) loadPrompts();
+  }, [authReady, currentUser, loadPrompts, needsPromptFeed]);
 
   // ── History ────────────────────────────────────────────────────────────────
   const loadHistory = useCallback(async () => {
@@ -230,10 +390,77 @@ export function AppProvider({ children }) {
     try {
       const data = await api.getHistory(currentUser.id);
       setGenerationHistory(data.history || []);
-    } catch {}
+      saveUserLS(LS_KEYS.HISTORY, currentUser.id, data.history || []);
+    } catch (error) {
+      console.error('[history] cloud load failed:', error);
+      setGenerationHistory(loadUserLS(LS_KEYS.HISTORY, currentUser.id, []));
+      setError(error?.message || '生成历史读取失败');
+    }
   }, [currentUser]);
 
-  useEffect(() => { loadHistory(); }, [loadHistory]);
+  const needsGenerationHistory = (
+    location.pathname.startsWith('/history')
+    || location.pathname.startsWith('/workspace')
+    || location.pathname.startsWith('/editor')
+  );
+
+  useEffect(() => {
+    if (authReady && needsGenerationHistory) loadHistory();
+  }, [authReady, loadHistory, needsGenerationHistory]);
+
+  // Keep the small queue indicator in sync without polling while idle.
+  useEffect(() => {
+    if (!authReady) return undefined;
+
+    let cancelled = false;
+    let timer = null;
+    const previousJobsRef = { current: generationJobs };
+    const previousSignatureRef = { current: generationJobs
+      .map(job => `${job.id}:${job.status}`)
+      .join('|') };
+
+    const syncGenerationJobs = async () => {
+      if (!currentUser?.id) {
+        if (generationJobs.length > 0) setGenerationJobs([]);
+        return;
+      }
+
+      try {
+        const jobsData = await api.listGenJobs({ limit: 50 });
+        const activeJobs = (jobsData.jobs || []).filter(job => (
+          job.status === 'queued' || job.status === 'running' || job.status === 'fast_running'
+        ));
+        const signature = activeJobs.map(job => `${job.id}:${job.status}`).join('|');
+        const previousJobs = previousJobsRef.current;
+        previousJobsRef.current = activeJobs;
+        if (!cancelled) {
+          if (signature !== previousSignatureRef.current) {
+            previousSignatureRef.current = signature;
+            setGenerationJobs(activeJobs);
+          }
+          if (previousJobs.length > 0 && activeJobs.length === 0) {
+            const historyData = await api.getHistory(currentUser.id);
+            if (!cancelled) {
+              setGenerationHistory(historyData.history || []);
+              saveUserLS(LS_KEYS.HISTORY, currentUser.id, historyData.history || []);
+            }
+          }
+        }
+      } catch {
+        // Keep the last known count when a background refresh is unavailable.
+      } finally {
+        if (!cancelled && previousJobsRef.current.length > 0) {
+          timer = window.setTimeout(syncGenerationJobs, 6000);
+        }
+      }
+    };
+
+    syncGenerationJobs();
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [authReady, currentUser?.id, generationJobs]);
 
   // ── Toggle like ───────────────────────────────────────────────────────────
   const toggleLike = useCallback(async (id) => {
@@ -241,7 +468,20 @@ export function AppProvider({ children }) {
     setLikedIds(prev => { const n = new Set(prev); wasLiked ? n.delete(id) : n.add(id); return n; });
     setPrompts(prev => prev.map(p => p.id === id ? { ...p, liked: !wasLiked, likes: p.likes + (wasLiked ? -1 : 1) } : p));
     setUserPrompts(prev => prev.map(p => p.id === id ? { ...p, liked: !wasLiked, likes: p.likes + (wasLiked ? -1 : 1) } : p));
-    try { await api.toggleLike(id); } catch {
+    try {
+      const updated = await api.toggleLike(id);
+      if (updated && typeof updated.liked === 'boolean') {
+        setLikedIds(prev => {
+          const next = new Set(prev);
+          updated.liked ? next.add(id) : next.delete(id);
+          return next;
+        });
+        setPrompts(prev => prev.map(p => p.id === id
+          ? { ...p, liked: updated.liked, likes: Number(updated.likes ?? p.likes) }
+          : p));
+      }
+    } catch (error) {
+      setError(error?.message || '点赞保存失败');
       setLikedIds(prev => { const n = new Set(prev); wasLiked ? n.add(id) : n.delete(id); return n; });
       setPrompts(prev => prev.map(p => p.id === id ? { ...p, liked: wasLiked, likes: p.likes + (wasLiked ? 1 : -1) } : p));
       setUserPrompts(prev => prev.map(p => p.id === id ? { ...p, liked: wasLiked, likes: p.likes + (wasLiked ? 1 : -1) } : p));
@@ -254,7 +494,17 @@ export function AppProvider({ children }) {
     setSavedIds(prev => { const n = new Set(prev); wasSaved ? n.delete(id) : n.add(id); return n; });
     setPrompts(prev => prev.map(p => p.id === id ? { ...p, saved: !wasSaved } : p));
     setUserPrompts(prev => prev.map(p => p.id === id ? { ...p, saved: !wasSaved } : p));
-    try { await api.toggleSave(id); } catch {
+    try {
+      const updated = await api.toggleSave(id);
+      if (updated && typeof updated.saved === 'boolean') {
+        setSavedIds(prev => {
+          const next = new Set(prev);
+          updated.saved ? next.add(id) : next.delete(id);
+          return next;
+        });
+      }
+    } catch (error) {
+      setError(error?.message || '收藏保存失败');
       setSavedIds(prev => { const n = new Set(prev); wasSaved ? n.add(id) : n.delete(id); return n; });
       setPrompts(prev => prev.map(p => p.id === id ? { ...p, saved: wasSaved } : p));
       setUserPrompts(prev => prev.map(p => p.id === id ? { ...p, saved: wasSaved } : p));
@@ -307,7 +557,10 @@ export function AppProvider({ children }) {
     setToken('');
     setCurrentUser(null);
     setGenerationHistory([]);
-    removeLS(LS_KEYS.HISTORY);
+    setUserPrompts([]);
+    setSavedIds(new Set());
+    setLikedIds(new Set());
+    setPrompts(current => current.filter(prompt => !prompt.isUserPrompt));
   }, []);
 
   // ── History ───────────────────────────────────────────────────────────────
@@ -320,62 +573,99 @@ export function AppProvider({ children }) {
       const next = [newEntry, ...prev].filter(h => h.id !== newEntry.id).slice(0, MAX_HISTORY);
       return next;
     });
+    if (currentUser?.id && newEntry.imageUrl && newEntry.prompt) {
+      api.addHistory({
+        imageUrl: newEntry.imageUrl,
+        prompt: newEntry.prompt,
+        model: newEntry.model,
+        mode: newEntry.mode,
+        jobId: newEntry.jobId || '',
+        referenceAssetId: newEntry.referenceAssetId || '',
+        storyboardShotId: newEntry.storyboardShotId || '',
+        conversationId: newEntry.conversationId || '',
+        category: newEntry.category || '',
+      }).then(remote => {
+        const saved = remote?.history || remote;
+        if (!saved?.id) throw new Error('生成历史接口没有返回已保存记录');
+        setGenerationHistory(prev => [
+          saved,
+          ...prev.filter(item => item.id !== newEntry.id && item.id !== saved.id),
+        ].slice(0, MAX_HISTORY));
+      }).catch(error => {
+        setError(error?.message || '生成历史保存失败');
+      });
+    }
+  }, [currentUser?.id]);
+
+  const registerGenerationJob = useCallback((job) => {
+    if (!job?.id || !['queued', 'running', 'fast_running'].includes(job.status || 'queued')) return;
+    setGenerationJobs(prev => [
+      job,
+      ...prev.filter(existing => existing.id !== job.id),
+    ]);
   }, []);
 
   const removeFromHistory = useCallback((id) => {
+    const removed = generationHistory.find(item => item.id === id);
     setGenerationHistory(prev => prev.filter(h => h.id !== id));
-    api.deleteHistory(id).catch(() => {});
-  }, []);
+    api.deleteHistory(id).catch(error => {
+      setError(error?.message || '生成历史删除失败');
+      if (removed) setGenerationHistory(prev => [removed, ...prev.filter(item => item.id !== id)]);
+    });
+  }, [generationHistory]);
 
   const clearHistory = useCallback(() => {
     // Optimistically clear local state immediately
     const current = generationHistory;
     setGenerationHistory([]);
-    removeLS(LS_KEYS.HISTORY);
+    if (currentUser?.id) saveUserLS(LS_KEYS.HISTORY, currentUser.id, []);
     // Delete each item from the backend
-    Promise.allSettled(current.map(h => api.deleteHistory(h.id))).catch(() => {});
-  }, [generationHistory]);
+    Promise.all(current.map(h => api.deleteHistory(h.id))).catch(error => {
+      setError(error?.message || '生成历史清空失败');
+      loadHistory();
+    });
+  }, [currentUser?.id, generationHistory, loadHistory]);
 
   // ── User prompt management ───────────────────────────────────────────────
   const addUserPrompt = useCallback((promptData) => {
     const newPrompt = {
       ...promptData,
-      id: `user_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-      createdAt: new Date().toISOString(),
+      id: promptData?.id || `user_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+      createdAt: promptData?.createdAt || new Date().toISOString(),
       likes: 0,
       usedCount: 0,
       isUserPrompt: true,
     };
     setUserPrompts(prev => {
       const updated = [newPrompt, ...prev];
-      saveLS(LS_KEYS.USER_PROMPTS, updated);
+      if (currentUser?.id) saveUserLS(LS_KEYS.USER_PROMPTS, currentUser.id, updated);
       return updated;
     });
     setPrompts(prev => [newPrompt, ...prev]);
     setStats(prev => ({ ...prev, promptsShared: prev.promptsShared + 1 }));
     return newPrompt;
-  }, []);
+  }, [currentUser?.id]);
 
   const deleteUserPrompt = useCallback((id) => {
     setUserPrompts(prev => {
       const updated = prev.filter(p => p.id !== id);
-      saveLS(LS_KEYS.USER_PROMPTS, updated);
+      if (currentUser?.id) saveUserLS(LS_KEYS.USER_PROMPTS, currentUser.id, updated);
       return updated;
     });
     setPrompts(prev => prev.filter(p => p.id !== id));
     setSavedIds(prev => { const n = new Set(prev); n.delete(id); return n; });
     setLikedIds(prev => { const n = new Set(prev); n.delete(id); return n; });
     setStats(prev => ({ ...prev, promptsShared: Math.max(0, prev.promptsShared - 1) }));
-  }, []);
+  }, [currentUser?.id]);
 
   const updateUserPrompt = useCallback((id, updates) => {
     setUserPrompts(prev => {
       const updated = prev.map(p => p.id === id ? { ...p, ...updates } : p);
-      saveLS(LS_KEYS.USER_PROMPTS, updated);
+      if (currentUser?.id) saveUserLS(LS_KEYS.USER_PROMPTS, currentUser.id, updated);
       return updated;
     });
     setPrompts(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
-  }, []);
+  }, [currentUser?.id]);
 
   // ── Increment used count ─────────────────────────────────────────────────
   const incrementUsedCount = useCallback((id) => {
@@ -393,37 +683,40 @@ export function AppProvider({ children }) {
       const data = await api.billingBalance();
       setCredits(normalizeCreditsValue(data?.balance ?? data));
       setSubscription(data.subscription ?? null);
-    } catch {}
+    } catch (error) {
+      console.error('[billing] balance load failed:', error);
+    }
   }, [currentUser]);
 
   useEffect(() => {
+    if (!authReady) return;
     if (currentUser) {
       loadBilling();
     } else {
       setCredits(0);
       setSubscription(null);
     }
-  }, [loadBilling, currentUser]);
+  }, [authReady, loadBilling, currentUser]);
 
   const updateLocalPrompt = useCallback((id, updates) => {
     setPrompts(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
     setUserPrompts(prev => {
       const updated = prev.map(p => p.id === id ? { ...p, ...updates } : p);
-      saveLS(LS_KEYS.USER_PROMPTS, updated);
+      if (currentUser?.id) saveUserLS(LS_KEYS.USER_PROMPTS, currentUser.id, updated);
       return updated;
     });
-  }, []);
+  }, [currentUser?.id]);
 
   const removePrompt = useCallback((id) => {
     setPrompts(prev => prev.filter(p => p.id !== id));
     setUserPrompts(prev => {
       const updated = prev.filter(p => p.id !== id);
-      saveLS(LS_KEYS.USER_PROMPTS, updated);
+      if (currentUser?.id) saveUserLS(LS_KEYS.USER_PROMPTS, currentUser.id, updated);
       return updated;
     });
     setSavedIds(prev => { const n = new Set(prev); n.delete(id); return n; });
     setLikedIds(prev => { const n = new Set(prev); n.delete(id); return n; });
-  }, []);
+  }, [currentUser?.id]);
 
   // ── Rebuild merged prompts when savedIds/likedIds change ─────────────────
   useEffect(() => {
@@ -435,20 +728,33 @@ export function AppProvider({ children }) {
   }, [savedIds, likedIds]);
 
   // ── Onboarding ─────────────────────────────────────────────────────────────
-  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(() => {
-    return loadLS(LS_KEYS.ONBOARDING_DONE, false);
-  });
+  useEffect(() => {
+    if (!currentUser) {
+      setHasCompletedOnboarding(false);
+      return;
+    }
+    setHasCompletedOnboarding(
+      Boolean(currentUser.hasCompletedOnboarding)
+      || loadUserLS(LS_KEYS.ONBOARDING_DONE, currentUser.id, false) === true,
+    );
+  }, [currentUser]);
 
   const completeOnboarding = useCallback(async (profileData = {}) => {
     const data = { ...profileData, completedAt: new Date().toISOString() };
-    saveLS(LS_KEYS.ONBOARDING_DONE, true);
+    await api.saveOnboarding(data);
+    saveUserLS(LS_KEYS.ONBOARDING_DONE, currentUser?.id, true);
+    setCurrentUser(current => current
+      ? {
+        ...current,
+        onboardingSource: Array.isArray(data.source) ? data.source : [],
+        onboardingRole: data.role || '',
+        onboardingUseCase: Array.isArray(data.useCase) ? data.useCase : [],
+        onboardingCompletedAt: data.completedAt,
+        hasCompletedOnboarding: true,
+      }
+      : current);
     setHasCompletedOnboarding(true);
-    try {
-      await api.saveOnboarding(data);
-    } catch {
-      // graceful degradation — still marked done locally
-    }
-  }, []);
+  }, [currentUser?.id]);
 
   const value = {
     // Data
@@ -459,6 +765,8 @@ export function AppProvider({ children }) {
     savedIds,
     likedIds,
     generationHistory,
+    generationJobs,
+    generationQueueCount: generationJobs.length,
     userPrompts,
 
     // Auth
@@ -484,6 +792,7 @@ export function AppProvider({ children }) {
     toggleLike,
     toggleSave,
     addToHistory,
+    registerGenerationJob,
     removeFromHistory,
     clearHistory,
     addUserPrompt,

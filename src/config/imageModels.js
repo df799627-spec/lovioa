@@ -8,14 +8,40 @@ const GEMINI_FLASH_ASPECT_RATIOS = [
 ];
 
 export const IMAGE_MODEL_OPTIONS = [
-  { value: 'gpt-image-2', label: 'GPT Image 2', shortLabel: 'GPT 2', family: 'openai', supportsEdit: true },
-  { value: 'gpt-image-2.5-flare', label: 'GPT Image 2.5 Flare', shortLabel: 'Flare', family: 'openai', supportsEdit: true },
-  { value: 'gpt-image-2.5-sunburst', label: 'GPT Image 2.5 Sunburst', shortLabel: 'Sunburst', family: 'openai', supportsEdit: true },
+  {
+    value: 'gpt-image-2.5-flare',
+    label: 'GPT Image 2.5',
+    shortLabel: 'GPT 2.5',
+    displayName: 'GPT Image 2.5 · Flare',
+    capability: '图片 · Flare',
+    family: 'openai',
+    supportsEdit: true,
+  },
+  {
+    value: 'gpt-image-2.5-sunburst',
+    label: 'GPT Image 2.5',
+    shortLabel: 'GPT 2.5',
+    displayName: 'GPT Image 2.5 · Sunburst',
+    capability: '图片 · Sunburst',
+    family: 'openai',
+    supportsEdit: true,
+  },
+  {
+    value: 'gpt-image-2',
+    label: 'GPT Image 2',
+    shortLabel: 'GPT 2',
+    displayName: 'GPT Image 2',
+    capability: '图片 · 文生图 / 图生图',
+    family: 'openai',
+    supportsEdit: true,
+  },
   {
     value: 'gemini-3-pro-image',
-    label: 'Nano Banana Pro',
-    shortLabel: 'Nano Pro',
+    label: 'Nano Banana 2 Pro',
+    shortLabel: 'Nano 2 Pro',
+    displayName: 'Nano Banana 2 Pro',
     modelName: 'Gemini 3 Pro Image',
+    capability: '图片 · 图像创意',
     family: 'gemini',
     supportsEdit: false,
     aspectRatios: GEMINI_PRO_ASPECT_RATIOS,
@@ -25,7 +51,9 @@ export const IMAGE_MODEL_OPTIONS = [
     value: 'gemini-3.1-flash-image',
     label: 'Nano Banana 2',
     shortLabel: 'Nano 2',
+    displayName: 'Nano Banana 2',
     modelName: 'Gemini 3.1 Flash Image',
+    capability: '图片 · 图像创意',
     family: 'gemini',
     supportsEdit: false,
     aspectRatios: GEMINI_FLASH_ASPECT_RATIOS,
@@ -33,15 +61,20 @@ export const IMAGE_MODEL_OPTIONS = [
   },
   {
     value: 'image-gemini-3-pro-image',
-    label: 'Nano Banana Pro (兼容路由)',
-    shortLabel: 'Nano Pro Alt',
+    label: 'Nano Banana 2',
+    shortLabel: 'Nano 2',
+    displayName: 'Nano Banana 2',
     modelName: 'image-gemini-3-pro-image',
+    capability: '图片 · 图像创意',
     family: 'gemini',
     supportsEdit: false,
+    visible: false,
     aspectRatios: GEMINI_PRO_ASPECT_RATIOS,
     imageSizes: ['1K', '2K', '4K'],
   },
 ];
+
+export const VISIBLE_IMAGE_MODEL_OPTIONS = IMAGE_MODEL_OPTIONS.filter(option => option.visible !== false);
 
 const configuredModel = String(import.meta.env.VITE_OPENAI_IMAGE_MODEL || '').trim();
 
@@ -49,6 +82,10 @@ export function getImageModelConfig(model) {
   return IMAGE_MODEL_OPTIONS.find((option) => option.value === model) || IMAGE_MODEL_OPTIONS[0];
 }
 
-export const DEFAULT_IMAGE_MODEL = IMAGE_MODEL_OPTIONS.some(({ value }) => value === configuredModel)
+export function getImageModelDisplayName(model) {
+  return IMAGE_MODEL_OPTIONS.find(option => option.value === model)?.displayName || model || IMAGE_MODEL_OPTIONS[0].displayName;
+}
+
+export const DEFAULT_IMAGE_MODEL = VISIBLE_IMAGE_MODEL_OPTIONS.some(({ value }) => value === configuredModel)
   ? configuredModel
-  : IMAGE_MODEL_OPTIONS[0].value;
+  : VISIBLE_IMAGE_MODEL_OPTIONS[0].value;

@@ -19,6 +19,7 @@
  *   S4_PUBLIC_DOMAIN / R2_PUBLIC_DOMAIN  — e.g. https://cdn.example.com
  */
 
+import '../env.js';
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 
@@ -104,18 +105,13 @@ export async function uploadBuffer(buffer, key, mimeType = 'image/png') {
   if (!USE_S4 && !USE_R2) throw new Error('[cloudStorage] No storage configured — set S4_* or R2_* env vars.');
 
   const client = getClient();
-  await new Upload({
-    client,
-    params: {
-      Bucket: BUCKET,
-      Key: key,
-      Body: buffer,
-      ContentType: mimeType,
-      CacheControl: 'public, max-age=31536000, immutable',
-    },
-    queueSize: 4,
-    partSize: 5 * 1024 * 1024,
-  }).done();
+  await client.send(new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: key,
+    Body: buffer,
+    ContentType: mimeType,
+    CacheControl: 'public, max-age=31536000, immutable',
+  }));
 
   return getCdnUrl(key);
 }

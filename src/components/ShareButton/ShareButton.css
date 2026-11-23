@@ -13,8 +13,8 @@
   height: 30px;
   border-radius: 50%;
   border: none;
-  background: rgba(28, 25, 23, 0.6);
-  color: white;
+  background: color-mix(in oklab, var(--foreground) 60%, transparent);
+  color: var(--background);
   cursor: pointer;
   transition: background 0.18s ease, transform 0.18s ease;
   backdrop-filter: blur(4px);

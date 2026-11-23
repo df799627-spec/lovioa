@@ -19,6 +19,11 @@ import Database from 'better-sqlite3';
 import { createHash } from 'crypto';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import {
+  buildCategoryGenerationBrief,
+  composeCategoryPrompt,
+  normalizeGenerationCategory,
+} from './services/categoryPromptBlueprints.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_FILE = join(__dirname, 'data/lovioa.db');
@@ -147,18 +152,24 @@ function dedupPrompts(prompts, existingSet) {
 }
 
 // ─── DeepSeek Call ─────────────────────────────────────────────────────────
-async function callDeepSeek({ categories, count = 10, round, batchIdx, signal }) {
+async function callDeepSeek({ category = '', categories = [], count = 10, round, batchIdx, signal }) {
   const baseUrl = DEEPSEEK_BASE_URL.replace(/\/+$/, '');
   const diverseCtx = buildDiversityContext(round, batchIdx, 0);
 
   const allowedCategories = categories.length > 0 ? categories : DEFAULT_CATEGORIES;
-  const catHint = categories.length > 0 ? categories.join(', ') : allowedCategories.slice(0, 8).join(', ');
+  const targetCategory = normalizeGenerationCategory(category)
+    || allowedCategories[batchIdx % allowedCategories.length]
+    || 'Abstract';
+  const categoryBrief = buildCategoryGenerationBrief(targetCategory);
 
   // 多样性：让 DeepSeek 在不同的摄影子域中探索
   const userPrompt = [
     'Generate strict JSON only. No additional text.',
-    `Generate ${count} unique English image prompts for AI generation stability testing.`,
-    `Categories to cover: ${catHint}`,
+    `Generate ${count} unique English image prompts for the single target category "${targetCategory}".`,
+    'Every prompt must visibly and unambiguously belong to that category.',
+    'Do not mix categories in one batch. The category field for every item must be exactly the target category.',
+    '',
+    categoryBrief,
     '',
     'IMPORTANT DIVERSITY RULES:',
     `- Vary the subject: person vs object vs scene vs abstract`,
@@ -172,7 +183,7 @@ async function callDeepSeek({ categories, count = 10, round, batchIdx, signal })
     `Format: {"items":[{"prompt":"...","category":"...","tags":["..."]}]}`,
     'Rules:',
     `- prompt: 15-45 words, vivid, photographic, no banned words`,
-    `- category: one of [${allowedCategories.join(', ')}]`,
+    `- category: exactly "${targetCategory}"`,
     '- tags: 3-6 lowercase tokens',
     `- output exactly ${count} items`,
   ].join('\n');
@@ -246,6 +257,7 @@ function enqueueBatch(prompts, existingSet, model, size, quality) {
           heartbeatRunId: '',
           heartbeatKind: '',
           heartbeatCategory: row.category || '',
+          category: normalizeGenerationCategory(row.category) || '',
           preferredChannel: '',
         });
         queued++;
@@ -348,6 +360,7 @@ async function main() {
         const controller = controllers[batchIdx];
         try {
           const items = await callDeepSeek({
+            category: categories[(round * CONCURRENCY + batchIdx) % categories.length],
             categories,
             count: BATCH_SIZE,
             round,
@@ -355,10 +368,13 @@ async function main() {
             signal: controller.signal,
           });
 
+          const targetCategory = normalizeGenerationCategory(
+            categories[(round * CONCURRENCY + batchIdx) % categories.length],
+          ) || 'Abstract';
           const validated = (Array.isArray(items) ? items : [])
             .map(item => ({
-              prompt: String(item?.prompt || '').trim(),
-              category: String(item?.category || '').trim(),
+              prompt: composeCategoryPrompt(String(item?.prompt || '').trim(), targetCategory),
+              category: targetCategory,
               tags: Array.isArray(item?.tags)
                 ? item.tags.map(t => String(t || '').trim().toLowerCase()).filter(Boolean).slice(0, 6)
                 : [],

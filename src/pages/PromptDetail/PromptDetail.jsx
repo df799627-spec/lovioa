@@ -1,13 +1,15 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Copy, Check, Heart, Tag, Pencil } from 'lucide-react';
+import { ArrowLeft, Copy, Check, Heart, Tag, Pencil, ImageOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
 import { api } from '../../services/api';
 import { trackAction } from '../../services/analytics';
+import { DEFAULT_IMAGE_MODEL } from '../../config/imageModels';
+import { normalizePromptCategory } from '../../utils/promptCategory';
+import { showToast } from '../../App';
 import StylePanel from '../../components/StylePanel/StylePanel';
-import GenerateModal from '../../components/GenerateModal/GenerateModal';
 import PromptCard from '../../components/PromptCard/PromptCard';
 import EditModal from '../../components/EditModal/EditModal';
 import SEO, { imageObjectJsonLd, breadcrumbJsonLd } from '../../components/SEO/SEO';
@@ -15,14 +17,22 @@ import ShareButton from '../../components/ShareButton/ShareButton';
 import './PromptDetail.css';
 
 export default function PromptDetail() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
-  const { prompts, toggleLike, likedIds, updateLocalPrompt, removePrompt, currentUser } = useApp();
+  const {
+    prompts,
+    toggleLike,
+    likedIds,
+    updateLocalPrompt,
+    removePrompt,
+    currentUser,
+    registerGenerationJob,
+  } = useApp();
   const [copied, setCopied] = useState(false);
-  const [showGenerate, setShowGenerate] = useState(false);
-  const [generationParams, setGenerationParams] = useState(null);
+  const [isQueueing, setIsQueueing] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
 
   const prompt = useMemo(() => prompts.find(p => p.id === id), [prompts, id]);
   const related = useMemo(
@@ -31,6 +41,15 @@ export default function PromptDetail() {
   );
   const liked = likedIds.has(id);
   const isAuthor = currentUser && prompt?.author?.userId === currentUser.id;
+  const isChinese = (i18n.resolvedLanguage || i18n.language || '').toLowerCase().startsWith('zh');
+  const displayPrompt = isChinese
+    ? (prompt?.promptZh || prompt?.prompt || '')
+    : (prompt?.prompt || '');
+  const hasImage = Boolean(prompt?.imageUrl) && !imageFailed;
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [id, prompt?.imageUrl]);
 
   if (!prompt) {
     return (
@@ -49,13 +68,55 @@ export default function PromptDetail() {
     });
   };
 
-  const handleGenerate = (params) => {
+  const handleGenerate = async (params) => {
     if (!currentUser) {
       navigate('/auth', { state: { from: `/prompt/${id}` } });
       return;
     }
-    setGenerationParams(params);
-    setShowGenerate(true);
+
+    setIsQueueing(true);
+    try {
+      const mode = params.mode === 'reference' ? 'edit' : 'text';
+      const promptText = mode === 'edit' ? params.prompt || prompt.prompt : params.prompt;
+      const jobPayload = {
+        model: DEFAULT_IMAGE_MODEL,
+        size: import.meta.env.VITE_OPENAI_IMAGE_SIZE || '1024x1024',
+        quality: import.meta.env.VITE_OPENAI_IMAGE_QUALITY || 'standard',
+        generationOptions: {
+          aspectRatio: '1:1',
+          imageSize: '2K',
+        },
+        mode,
+        prompt: promptText,
+        negativePrompt: '',
+        category: normalizePromptCategory({
+          prompt: promptText,
+          tags: prompt.tags || [],
+          manualCategory: prompt.category || 'Generated',
+        }),
+      };
+
+      if (mode === 'edit' && params.image) {
+        const { url } = await api.uploadImage(params.image);
+        jobPayload.referenceImageUrl = url;
+        jobPayload.editStrength = params.strength ?? 0.6;
+      }
+
+      const response = await api.createGenJob(jobPayload);
+      const job = response?.job || response;
+      if (!job?.id) throw new Error(t('hero.queueError'));
+      registerGenerationJob(job);
+      trackAction('act_queue_success', { mode, model: DEFAULT_IMAGE_MODEL, promptId: id });
+      showToast(t('hero.queueToast'), 'success');
+    } catch (error) {
+      if (error.status === 401) {
+        navigate('/auth', { state: { from: `/prompt/${id}` } });
+      } else {
+        showToast(error.message || t('hero.queueError'), 'error');
+      }
+    } finally {
+      setIsQueueing(false);
+    }
   };
 
   const handleSaveEdit = async ({ prompt: newPromptText, tags, category }) => {
@@ -113,8 +174,20 @@ export default function PromptDetail() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         >
-          <div className="prompt-detail__image-wrap">
-            <img src={prompt.imageUrl} alt={prompt.category} className="prompt-detail__image" />
+          <div className={`prompt-detail__image-wrap ${hasImage ? '' : 'prompt-detail__image-wrap--empty'}`}>
+            {hasImage ? (
+              <img
+                src={prompt.imageUrl}
+                alt={prompt.category}
+                className="prompt-detail__image"
+                onError={() => setImageFailed(true)}
+              />
+            ) : (
+              <div className="prompt-detail__image-placeholder" role="img" aria-label={t('promptDetail.imageUnavailable')}>
+                <ImageOff size={32} aria-hidden="true" />
+                <span>{t('promptDetail.imageUnavailable')}</span>
+              </div>
+            )}
             <div className="prompt-detail__image-badge">{prompt.category}</div>
             <div className="prompt-detail__share-btn">
               <ShareButton
@@ -154,7 +227,7 @@ export default function PromptDetail() {
                 <span>{copied ? t('promptDetail.copied') : t('promptDetail.copy')}</span>
               </button>
             </div>
-            <p className="prompt-detail__prompt-text">{prompt.prompt}</p>
+            <p className="prompt-detail__prompt-text">{displayPrompt}</p>
           </div>
 
           {/* Tags */}
@@ -207,21 +280,6 @@ export default function PromptDetail() {
         </div>
       )}
 
-      {showGenerate && (
-        <GenerateModal
-          initialPrompt={
-            generationParams?.mode === 'text'
-              ? generationParams.prompt
-              : prompt.prompt
-          }
-          initialMode={generationParams?.mode === 'reference' ? 'edit' : (generationParams?.mode || 'text')}
-          initialImage={generationParams?.mode === 'reference' ? generationParams.image : null}
-          initialInstruction={generationParams?.mode === 'reference' ? generationParams.prompt : ''}
-          initialStrength={generationParams?.mode === 'reference' ? generationParams.strength : null}
-          onClose={() => { setShowGenerate(false); setGenerationParams(null); }}
-        />
-      )}
-
       <AnimatePresence>
         {showEdit && (
           <EditModal
@@ -253,8 +311,9 @@ export default function PromptDetail() {
         <button
           className="prompt-detail__mobile-bar-btn prompt-detail__mobile-bar-btn--generate"
           onClick={() => handleGenerate({ mode: 'text', prompt: prompt.prompt })}
+          disabled={isQueueing}
         >
-          {t('promptDetail.generate')}
+          {isQueueing ? t('hero.queueing') : t('promptDetail.generate')}
         </button>
       </div>
       </div>

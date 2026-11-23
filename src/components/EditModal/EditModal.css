@@ -1,7 +1,7 @@
 .edit-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(28, 25, 23, 0.5);
+  background: color-mix(in oklab, var(--foreground) 50%, transparent);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -18,7 +18,7 @@
   max-width: 540px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(28, 25, 23, 0.15);
+  box-shadow: 0 20px 60px var(--shadow-lg);
 }
 
 .edit-modal__header {
@@ -29,7 +29,7 @@
 }
 
 .edit-modal__title {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 1.4rem;
   font-weight: 500;
   color: var(--color-text);
@@ -156,7 +156,7 @@
 .edit-modal__cat-btn.active {
   background: var(--color-accent);
   border-color: var(--color-accent);
-  color: #fff;
+  color: var(--brand-foreground);
 }
 
 .edit-modal__footer {
@@ -188,12 +188,12 @@
 }
 .edit-modal__btn--primary {
   background: var(--color-accent);
-  color: #fff;
+  color: var(--brand-foreground);
   border-color: var(--color-accent);
 }
 .edit-modal__btn--primary:hover:not(:disabled) {
-  background: #9a4e1e;
-  border-color: #9a4e1e;
+  background: color-mix(in oklab, var(--brand) 55%, var(--background));
+  border-color: color-mix(in oklab, var(--brand) 55%, var(--background));
 }
 .edit-modal__btn--ghost {
   background: transparent;
@@ -205,16 +205,16 @@
   color: var(--color-text);
 }
 .edit-modal__btn--danger {
-  background: #dc2626;
-  color: #fff;
-  border-color: #dc2626;
+  background: var(--destructive);
+  color: var(--brand-foreground);
+  border-color: var(--destructive);
 }
 .edit-modal__btn--danger:hover:not(:disabled) {
-  background: #b91c1c;
+  background: color-mix(in oklab, var(--destructive) 80%, var(--background));
 }
 .edit-modal__btn--danger-ghost {
   background: transparent;
-  color: #dc2626;
+  color: var(--destructive);
   border-color: transparent;
   font-size: 0.82rem;
   padding: 9px 12px;
@@ -248,7 +248,7 @@
   .edit-modal-overlay {
     align-items: flex-end;
     padding: 0;
-    background: rgba(28, 25, 23, 0.5);
+    background: color-mix(in oklab, var(--foreground) 50%, transparent);
   }
 
   .edit-modal {

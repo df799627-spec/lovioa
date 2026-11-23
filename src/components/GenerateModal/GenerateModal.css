@@ -2,7 +2,7 @@
   position: fixed;
   inset: 0;
   z-index: 300;
-  background: rgba(28, 25, 23, 0.6);
+  background: color-mix(in oklab, var(--foreground) 60%, transparent);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -41,7 +41,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 1.15rem;
   font-weight: 500;
   color: var(--color-text);
@@ -295,7 +295,7 @@
   align-items: center;
   padding: 2px 8px;
   background: var(--color-accent);
-  color: white;
+  color: var(--brand-foreground);
   font-size: 0.68rem;
   font-weight: 600;
   border-radius: var(--radius-full);
@@ -327,7 +327,7 @@
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-6);
-  color: #dc2626;
+  color: var(--destructive);
   font-size: 0.82rem;
   background: rgba(220, 38, 38, 0.06);
 }
@@ -341,8 +341,8 @@
   gap: var(--space-3);
   padding: var(--space-6);
   margin: var(--space-4) var(--space-6);
-  background: linear-gradient(135deg, rgba(181, 98, 42, 0.08), rgba(181, 98, 42, 0.04));
-  border: 1.5px solid rgba(181, 98, 42, 0.25);
+  background: linear-gradient(135deg, color-mix(in oklab, var(--brand) 8%, transparent), color-mix(in oklab, var(--brand) 4%, transparent));
+  border: 1.5px solid color-mix(in oklab, var(--brand) 25%, transparent);
   border-radius: var(--radius-lg);
 }
 
@@ -350,7 +350,7 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: rgba(181, 98, 42, 0.12);
+  background: color-mix(in oklab, var(--brand) 12%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -377,7 +377,7 @@
 .generate-modal__credits-error-btn {
   padding: var(--space-3) var(--space-6);
   background: var(--color-accent);
-  color: white;
+  color: var(--destructive);
   border-radius: var(--radius-full);
   font-size: 0.85rem;
   font-weight: 500;
@@ -457,8 +457,8 @@
 }
 
 .generate-modal__cancel-btn:hover {
-  border-color: #dc2626;
-  color: #dc2626;
+  border-color: var(--destructive);
+  color: var(--destructive);
   background: rgba(220, 38, 38, 0.06);
 }
 
@@ -471,7 +471,7 @@
   margin: var(--space-5) var(--space-6);
   padding: var(--space-4);
   background: var(--color-accent);
-  color: white;
+  color: var(--brand-foreground);
   font-size: 0.9rem;
   font-weight: 500;
   border-radius: var(--radius-full);
@@ -501,7 +501,7 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: white;
+  background: var(--brand-foreground);
   animation: dotBounce 1.2s ease-in-out infinite;
 }
 
@@ -518,7 +518,7 @@
   width: 16px;
   height: 16px;
   border: 2px solid rgba(255,255,255,0.3);
-  border-top-color: white;
+  border-top-color: var(--brand-foreground);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -585,7 +585,7 @@
 
 .generate-modal__result-btn--primary {
   background: var(--color-accent);
-  color: white;
+  color: var(--brand-foreground);
 }
 
 .generate-modal__result-btn--primary:hover {
@@ -713,7 +713,7 @@
 .generate-modal__result-btn--secondary {
   background: var(--color-accent-soft);
   color: var(--color-accent);
-  border: 1px solid rgba(181, 98, 42, 0.2);
+  border: 1px solid color-mix(in oklab, var(--brand) 20%, transparent);
 }
 
 .generate-modal__result-btn--secondary:hover {
@@ -811,7 +811,7 @@
     position: sticky;
     bottom: 0;
     background: var(--color-accent);
-    box-shadow: 0 -4px 20px rgba(181, 98, 42, 0.2);
+    box-shadow: 0 -4px 20px color-mix(in oklab, var(--brand) 20%, transparent);
   }
 
   .generate-modal__result {

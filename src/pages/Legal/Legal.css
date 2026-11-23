@@ -23,10 +23,10 @@
 }
 
 .legal__title {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: clamp(1.8rem, 4vw, 2.8rem);
   font-weight: 400;
-  font-style: italic;
+  font-style: normal;
   color: var(--color-text);
   letter-spacing: -0.02em;
   line-height: 1.1;
@@ -78,9 +78,9 @@
 }
 
 .legal__nav-item.is-active {
-  background: var(--color-dark);
-  color: #E8C9A8;
-  font-weight: 500;
+  background: var(--muted);
+  color: var(--foreground);
+  font-weight: var(--control-font-weight);
 }
 
 /* ── Scrollable content ────────────────────────────────── */
@@ -109,7 +109,7 @@
   gap: 5px;
   flex-shrink: 0;
   padding: 6px 12px;
-  border-radius: 100px;
+  border-radius: var(--radius-2xl);
   border: 1.5px solid var(--color-border);
   background: none;
   font-size: 0.79rem;
@@ -125,10 +125,10 @@
 }
 
 .legal__mobile-tab.is-active {
-  background: var(--color-dark);
-  border-color: var(--color-dark);
-  color: #E8C9A8;
-  font-weight: 500;
+  background: var(--muted);
+  border-color: var(--border);
+  color: var(--foreground);
+  font-weight: var(--control-font-weight);
 }
 
 /* ── Content typography ────────────────────────────────── */
@@ -147,7 +147,7 @@
 }
 
 .legal__h3 {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 1.05rem;
   font-weight: 500;
   color: var(--color-text);

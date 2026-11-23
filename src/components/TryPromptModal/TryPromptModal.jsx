@@ -2,6 +2,7 @@ import { createPortal } from 'react-dom';
 import { AtSign, Cpu, Image, Layers3, Maximize2, Paperclip, Send, Sparkles, X } from 'lucide-react';
 import ComposerSelect from '../Hero/ComposerSelect';
 import ComposerMentionPicker from '../Hero/ComposerMentionPicker';
+import MentionHighlight from '../Hero/MentionHighlight';
 import './TryPromptModal.css';
 
 export default function TryPromptModal({
@@ -19,7 +20,7 @@ export default function TryPromptModal({
   composerInputRef,
   fileRef,
   hasComposerContent,
-  composerMention,
+  mentionPool,
   showMentionPicker,
   mentionQuery,
   savedImagePrompts,
@@ -27,7 +28,6 @@ export default function TryPromptModal({
   isRefining,
   submitLabel,
   error,
-  refineError,
   onSubmit,
   onRefine,
   onClose,
@@ -68,14 +68,18 @@ export default function TryPromptModal({
         </div>
 
         <div className="hero__composer-input-wrap">
+          <MentionHighlight value={query} />
           <textarea
             ref={composerInputRef}
             className="hero__composer-input"
             rows={5}
-            placeholder={composerMention ? t('hero.composerWithImagePlaceholder') : t('hero.composerPlaceholder')}
+            placeholder={mentionPool.length > 0 ? t('hero.composerWithImagePlaceholder') : t('hero.composerPlaceholder')}
             value={query}
             onChange={event => onQueryChange(event.target.value)}
             onKeyDown={onKeyDown}
+            onScroll={onSyncMentionOverlay}
+            onClick={() => onQueryChange(query)}
+            onKeyUp={() => onQueryChange(query)}
             aria-label={t('hero.composerPlaceholder')}
           />
           {showMentionPicker && (
@@ -102,26 +106,26 @@ export default function TryPromptModal({
           </div>
         )}
 
-        {composerMention && (
-          <div className="hero__composer-mention">
-            <img src={composerMention.imageUrl} alt="" />
+        {mentionPool.map(({ refIndex, prompt }) => (
+          <div key={refIndex} className="hero__composer-mention">
+            <img src={prompt.imageUrl} alt="" />
             <span className="hero__composer-mention-copy">
               <span className="hero__composer-mention-label">
                 <AtSign size={12} />
-                {t('hero.mentionReference')}
+                @ref:{refIndex}
               </span>
-              <strong>{composerMention.category || t('hero.mentionSavedImage')}</strong>
+              <strong>{prompt.category || t('hero.mentionSavedImage')}</strong>
             </span>
             <button
               type="button"
               className="hero__composer-mention-remove"
-              onClick={onRemoveMention}
+              onClick={() => onRemoveMention(refIndex)}
               aria-label={t('stylePanel.removeRef')}
             >
               <X size={13} />
             </button>
           </div>
-        )}
+        ))}
 
         <div className="hero__composer-toolbar">
           <div className="hero__composer-left">
@@ -172,7 +176,7 @@ export default function TryPromptModal({
                 renderOption={option => (
                   <span className="hero__composer-model-option">
                     <strong>{option?.shortLabel || option?.label}</strong>
-                    <small>{option?.modelName || option?.value}</small>
+                    <small>{option?.capability}</small>
                   </span>
                 )}
               />
@@ -212,8 +216,6 @@ export default function TryPromptModal({
             </button>
           </div>
         </div>
-
-        {(error || refineError) && <p className="hero__composer-error">{error || refineError}</p>}
       </form>
     </div>,
     document.body

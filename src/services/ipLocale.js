@@ -29,6 +29,10 @@ const COUNTRY_TO_LANG = [
 
 const STORAGE_KEY = 'pf_ip_lang';
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24; // 24 hours
+// Negative cache: remember lookup failures so we don't retry on every page load.
+const NEGATIVE_CACHE_KEY = 'pf_ip_lang_failed';
+const NEGATIVE_CACHE_TTL_MS = 1000 * 60 * 10; // 10 minutes
+const LOOKUP_TIMEOUT_MS = 1500;
 
 /**
  * @returns {{ lang: string, source: 'ip'|'cache'|'manual'|'default', country: string|null }}
@@ -42,6 +46,14 @@ export async function detectLocaleByIP() {
     }
   } catch { /* ignore */ }
 
+  // 1b. Negative cache: a recent lookup failed; skip the network entirely.
+  try {
+    const failedAt = Number(localStorage.getItem(NEGATIVE_CACHE_KEY) || 0);
+    if (failedAt && Date.now() - failedAt < NEGATIVE_CACHE_TTL_MS) {
+      return { lang: 'en', source: 'default', country: null };
+    }
+  } catch { /* ignore */ }
+
   // 2. If user has manually set a language preference, skip IP lookup
   const manualLang = localStorage.getItem('pf_lang');
   if (manualLang && SUPPORTED_LANGS.includes(manualLang)) {
@@ -51,7 +63,7 @@ export async function detectLocaleByIP() {
   // 3. Fetch country from IP
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4000);
+    const timeout = setTimeout(() => controller.abort(), LOOKUP_TIMEOUT_MS);
 
     const res = await fetch('https://ip-api.com/json/?fields=status,countryCode,country', {
       signal: controller.signal,
@@ -67,11 +79,17 @@ export async function detectLocaleByIP() {
 
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({ lang, country: countryCode, ts: Date.now() }));
+        localStorage.removeItem(NEGATIVE_CACHE_KEY);
       } catch { /* localStorage full */ }
 
       return { lang, source: 'ip', country: countryCode };
     }
   } catch { /* network/timeout failure */ }
+
+  // 4. Record the failure so subsequent page loads skip the lookup.
+  try {
+    localStorage.setItem(NEGATIVE_CACHE_KEY, String(Date.now()));
+  } catch { /* ignore */ }
 
   // 4. Default fallback
   return { lang: 'en', source: 'default', country: null };

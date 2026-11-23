@@ -4,27 +4,38 @@ import { AppProvider, useApp } from './context/AppContext';
 import { SeoProvider } from './context/SeoContext';
 import NavBar from './components/NavBar/NavBar';
 import Toast from './components/Toast/Toast';
-import Explore from './pages/Explore/Explore';
-import PromptDetail from './pages/PromptDetail/PromptDetail';
-import Upload from './pages/Upload/Upload';
-import Saved from './pages/Saved/Saved';
-import History from './pages/History/History';
-import Auth from './pages/Auth/Auth';
-import Onboarding from './pages/Onboarding/Onboarding';
-import Profile from './pages/Profile/Profile';
-import Admin from './pages/Admin/Admin';
-import Subscribe from './pages/Subscribe/Subscribe';
-import Balance from './pages/Balance/Balance';
-import Legal from './pages/Legal/Legal';
-import Team from './pages/Team/Team';
-import AcceptableUse from './pages/AcceptableUse/AcceptableUse';
-import Editor from './pages/Editor/Editor';
 import SiteFooter from './components/SiteFooter/SiteFooter';
 import SEO, { imageGalleryJsonLd, webSiteJsonLd } from './components/SEO/SEO';
-import { useState, useEffect } from 'react';
+import { lazy, Suspense, useState, useEffect } from 'react';
 import { trackPage } from './services/analytics';
 import { ThemeProvider } from './context/ThemeContext';
 import './styles/global.css';
+
+const Explore = lazy(() => import('./pages/Explore/Explore'));
+const PromptDetail = lazy(() => import('./pages/PromptDetail/PromptDetail'));
+const Upload = lazy(() => import('./pages/Upload/Upload'));
+const Saved = lazy(() => import('./pages/Saved/Saved'));
+const History = lazy(() => import('./pages/History/History'));
+const Auth = lazy(() => import('./pages/Auth/Auth'));
+const Onboarding = lazy(() => import('./pages/Onboarding/Onboarding'));
+const Profile = lazy(() => import('./pages/Profile/Profile'));
+const Admin = lazy(() => import('./pages/Admin/Admin'));
+const Subscribe = lazy(() => import('./pages/Subscribe/Subscribe'));
+const Balance = lazy(() => import('./pages/Balance/Balance'));
+const Redeem = lazy(() => import('./pages/Redeem/Redeem'));
+const Legal = lazy(() => import('./pages/Legal/Legal'));
+const Team = lazy(() => import('./pages/Team/Team'));
+const AcceptableUse = lazy(() => import('./pages/AcceptableUse/AcceptableUse'));
+const Editor = lazy(() => import('./pages/Editor/Editor'));
+const Workspace = lazy(() => import('./pages/Workspace/Workspace'));
+const VideoStudio = lazy(() => import('./pages/VideoStudio/VideoStudio'));
+const Skills = lazy(() => import('./pages/Skills/Skills'));
+const SkillDetail = lazy(() => import('./pages/Skills/SkillDetail'));
+const SkillCreate = lazy(() => import('./pages/Skills/SkillCreate'));
+
+function RouteLoading() {
+  return <div className="route-loading" aria-busy="true" />;
+}
 
 // ── Page tracking via React Router location (reliable, no MutationObserver) ──
 function PageTracker() {
@@ -37,7 +48,7 @@ function PageTracker() {
 
 function RequireAuth({ children }) {
   const { currentUser, authReady } = useApp();
-  if (!authReady) return null;
+  if (!authReady) return <RouteLoading />;
   return currentUser ? children : <Navigate to="/auth" replace />;
 }
 
@@ -45,35 +56,49 @@ function RequireAuth({ children }) {
 function AppShell() {
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith('/admin');
+  const isWorkspaceRoute = location.pathname.startsWith('/workspace');
+  const isVideoStudioRoute = location.pathname.startsWith('/video-studio');
   return (
     <>
-      {!isAdminRoute && <NavBar />}
+      {!isAdminRoute && !isWorkspaceRoute && !isVideoStudioRoute && <NavBar />}
       <PageTracker />
-      <Routes>
-        <Route path="/" element={<Explore />} />
-        <Route path="/prompt/:id" element={<PromptDetail />} />
-        <Route path="/auth" element={<Auth />} />
-        <Route path="/onboarding" element={
-          <RequireAuth><Onboarding /></RequireAuth>
-        } />
-        <Route path="/profile/:id" element={<Profile />} />
-        <Route path="/upload" element={
-          <RequireAuth><Upload /></RequireAuth>
-        } />
-        <Route path="/saved" element={<Saved />} />
-        <Route path="/history" element={<History />} />
-        <Route path="/admin/*" element={<Admin />} />
-        <Route path="/subscribe" element={<Subscribe />} />
-        <Route path="/balance" element={<Balance />} />
-        <Route path="/team" element={<Team />} />
-        <Route path="/pricing" element={<Navigate to="/subscribe" replace />} />
-        <Route path="/terms" element={<Legal />} />
-        <Route path="/privacy" element={<Legal />} />
-        <Route path="/cookies" element={<Legal />} />
-        <Route path="/acceptable-use" element={<AcceptableUse />} />
-        <Route path="/editor" element={<Editor />} />
-      </Routes>
-      {!isAdminRoute && <SiteFooter />}
+      <Suspense fallback={<RouteLoading />}>
+        <Routes>
+          <Route path="/" element={<Explore />} />
+          <Route path="/prompt/:id" element={<PromptDetail />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/onboarding" element={
+            <RequireAuth><Onboarding /></RequireAuth>
+          } />
+          <Route path="/profile/:id" element={<Profile />} />
+          <Route path="/upload" element={
+            <RequireAuth><Upload /></RequireAuth>
+          } />
+          <Route path="/saved" element={<Saved />} />
+          <Route path="/history" element={<History />} />
+          <Route path="/admin/*" element={<Admin />} />
+          <Route path="/subscribe" element={<Subscribe />} />
+          <Route path="/balance" element={<Balance />} />
+          <Route path="/redeem" element={<RequireAuth><Redeem /></RequireAuth>} />
+          <Route path="/team" element={<Team />} />
+          <Route path="/pricing" element={<Navigate to="/subscribe" replace />} />
+          <Route path="/terms" element={<Legal />} />
+          <Route path="/privacy" element={<Legal />} />
+          <Route path="/cookies" element={<Legal />} />
+          <Route path="/acceptable-use" element={<AcceptableUse />} />
+          <Route path="/editor" element={<Editor />} />
+          <Route path="/workspace" element={<Workspace />} />
+          <Route path="/video-studio" element={
+            <RequireAuth><VideoStudio /></RequireAuth>
+          } />
+          <Route path="/skills" element={<Skills />} />
+          <Route path="/skills/create" element={
+            <RequireAuth><SkillCreate /></RequireAuth>
+          } />
+          <Route path="/skills/:idOrSlug" element={<SkillDetail />} />
+        </Routes>
+      </Suspense>
+      {!isAdminRoute && !isWorkspaceRoute && !isVideoStudioRoute && <SiteFooter />}
     </>
   );
 }

@@ -39,7 +39,7 @@ const detectionOptions = {
  */
 export async function initI18n() {
   // Always register the plugins first
-  i18n
+  await i18n
     .use(LanguageDetector)
     .use(initReactI18next)
     .init({
@@ -57,27 +57,29 @@ export async function initI18n() {
       detection: detectionOptions,
     });
 
-  // If neither querystring nor localStorage gave a supported language,
-  // run the IP-based detection to fill the gap.
-  const detected = await detectLocaleByIP();
-  const storedLang = localStorage.getItem('pf_lang');
-
-  if (
-    detected.source === 'ip' &&
-    (!storedLang || !['en', 'zh', 'ja', 'ko', 'fr', 'de', 'es', 'pt', 'ar', 'ru', 'hi'].includes(storedLang)) &&
-    !new URLSearchParams(window.location.search).has('lang')
-  ) {
-    // No manual preference set — apply the IP-detected language.
-    // Also persist it so refreshes don't re-trigger the IP lookup.
-    await i18n.changeLanguage(detected.lang);
-    localStorage.setItem('pf_lang', detected.lang);
-    syncDocumentDirection(detected.lang);
-  }
-
   // Ensure <html dir> is set correctly for the resolved language
   syncDocumentDirection(i18n.language);
 
-  return { lang: i18n.language, source: detected.source, country: detected.country };
+  // IP detection is only a convenience for first-time visitors. It must not
+  // block the first render while waiting on an external service.
+  const hasManualLanguage = Boolean(
+    localStorage.getItem('pf_lang')
+    || new URLSearchParams(window.location.search).has('lang'),
+  );
+  if (!hasManualLanguage) {
+    detectLocaleByIP().then(async detected => {
+      if (detected.source !== 'ip' && detected.source !== 'cache') return;
+      if (
+        localStorage.getItem('pf_lang')
+        || new URLSearchParams(window.location.search).has('lang')
+      ) return;
+      await i18n.changeLanguage(detected.lang);
+      localStorage.setItem('pf_lang', detected.lang);
+      syncDocumentDirection(detected.lang);
+    }).catch(() => {});
+  }
+
+  return { lang: i18n.language, source: hasManualLanguage ? 'manual' : 'default', country: null };
 }
 
 export default i18n;

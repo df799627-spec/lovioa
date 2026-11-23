@@ -27,6 +27,13 @@ export const errors = {
     'prompt.notFound': 'Prompt not found',
     'prompt.deleteSuccess': 'Prompt deleted',
 
+    // Skills
+    'skill.notFound': 'Skill not found',
+    'skill.nameRequired': 'Skill name is required (2-64 chars)',
+    'skill.instructionsRequired': 'Skill instructions are required (min 10 chars)',
+    'skill.ideaRequired': 'Please describe what you want the skill to do (min 5 chars)',
+    'skill.deleteSuccess': 'Skill deleted',
+
     // Upload
     'upload.noFile': 'No image file provided',
     'upload.typeInvalid': 'Only image files are allowed',
@@ -99,6 +106,13 @@ export const errors = {
     'prompt.required': '提示词不能为空（至少 10 个字符）',
     'prompt.notFound': '未找到该提示词',
     'prompt.deleteSuccess': '提示词已删除',
+
+    // Skills
+    'skill.notFound': '未找到该技能',
+    'skill.nameRequired': '技能名称不能为空（2-64 个字符）',
+    'skill.instructionsRequired': '技能指令内容不能为空（至少 10 个字符）',
+    'skill.ideaRequired': '请描述你想要的技能（至少 5 个字符）',
+    'skill.deleteSuccess': '技能已删除',
 
     // Upload
     'upload.noFile': '请上传图片文件',

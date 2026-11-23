@@ -9,7 +9,7 @@
 }
 
 .history-page__title {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: clamp(2rem, 4vw, 3rem);
   font-weight: 400;
   color: var(--color-text);
@@ -60,7 +60,7 @@
   top: var(--space-3);
   left: var(--space-3);
   padding: var(--space-1) var(--space-3);
-  background: rgba(28, 25, 23, 0.7);
+  background: color-mix(in oklab, var(--foreground) 70%, transparent);
   color: white;
   font-size: 0.68rem;
   font-weight: 500;
@@ -76,7 +76,7 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: rgba(28, 25, 23, 0.6);
+  background: color-mix(in oklab, var(--foreground) 60%, transparent);
   color: white;
   display: flex;
   align-items: center;
@@ -145,7 +145,7 @@
 }
 
 .history-card__action.copied {
-  background: #4ade80;
+  background: var(--success);
   color: white;
 }
 
@@ -164,7 +164,7 @@
 }
 
 .history-page__empty-title {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 1.5rem;
   font-weight: 400;
   color: var(--color-text);
@@ -230,8 +230,8 @@
 }
 
 .history-page__clear-btn:hover {
-  border-color: #dc2626;
-  color: #dc2626;
+  border-color: var(--destructive);
+  color: var(--destructive);
   background: rgba(220, 38, 38, 0.06);
 }
 
@@ -278,7 +278,7 @@
 .history-page__confirm-confirm {
   padding: var(--space-2) var(--space-5);
   border-radius: var(--radius-full);
-  background: #dc2626;
+  background: var(--destructive);
   color: white;
   font-size: 0.82rem;
   font-weight: 500;
@@ -288,7 +288,7 @@
 }
 
 .history-page__confirm-confirm:hover {
-  background: #b91c1c;
+  background: color-mix(in oklab, var(--destructive) 80%, var(--background));
 }
 
 @media (max-width: 768px) {

@@ -1,18 +1,33 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AtSign, Cpu, Image, Layers3, Maximize2, Paperclip, Send, Sparkles, X } from 'lucide-react';
+import { AtSign, Bot, Cpu, Image, Layers3, Maximize2, Paperclip, Send, Sparkles, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
 import { useLocale } from '../../hooks/useLocale';
 import { trackAction } from '../../services/analytics';
-import { DEFAULT_IMAGE_MODEL, getImageModelConfig, IMAGE_MODEL_OPTIONS } from '../../config/imageModels';
+import {
+  DEFAULT_IMAGE_MODEL,
+  getImageModelConfig,
+  VISIBLE_IMAGE_MODEL_OPTIONS,
+} from '../../config/imageModels';
 import { normalizePromptCategory } from '../../utils/promptCategory';
 import { api } from '../../services/api';
 import { showToast } from '../../App';
+import { DEFAULT_AGENT_ID } from '../../config/agents';
+import {
+  collectAgentReferenceAssets,
+  collectAgentStoryboardShots,
+  collectAgentVideoOutputs,
+  getAgentSteps,
+} from '../../utils/agentArtifacts';
 import ComposerSelect from './ComposerSelect';
 import ComposerMentionPicker from './ComposerMentionPicker';
-import GenerateModal from '../GenerateModal/GenerateModal';
+import MentionHighlight from './MentionHighlight';
+import {
+  extractMentionRefs,
+  stripMentionRefs,
+} from '../../utils/mentionTokens';
 import TryPromptModal from '../TryPromptModal/TryPromptModal';
 import './Hero.css';
 
@@ -20,34 +35,39 @@ const DEFAULT_SIZE = import.meta.env.VITE_OPENAI_IMAGE_SIZE || '1024x1024';
 const DEFAULT_QUALITY = import.meta.env.VITE_OPENAI_IMAGE_QUALITY || 'standard';
 const COMPOSER_IMAGE_SIZES = ['1K', '2K', '4K'];
 const COMPOSER_ASPECT_RATIOS = ['auto', '1:1', '16:9', '9:16', '4:3', '3:4', '21:9'];
-const EDITABLE_MODEL = IMAGE_MODEL_OPTIONS.find(option => option.supportsEdit)?.value || DEFAULT_IMAGE_MODEL;
+const EDITABLE_MODEL = VISIBLE_IMAGE_MODEL_OPTIONS.find(option => option.supportsEdit)?.value || DEFAULT_IMAGE_MODEL;
 
-function getMentionContext(value) {
-  const match = /(?:^|\s)@([^\s]*)$/.exec(value);
+// 弹出选择器：只在光标位于未完成的 "@ref:" 前缀（或纯 "@"）后时触发。
+// 选中的引用以严格 token @ref:N 落盘，识别完全确定性。
+const CJK = '\u4e00-\u9fff\u3400-\u4dbf';
+function getMentionContext(value, caret) {
+  if (typeof caret !== 'number') return null;
+  const before = value.slice(0, caret);
+  const match = new RegExp(`(^|[\\s（(《【「,，。.、;；!！?？${CJK}])@(ref:?)$`).exec(before);
   if (!match) return null;
   return {
-    query: match[1],
-    start: value.length - match[1].length - 1,
-    end: value.length,
+    query: '',
+    start: caret - match[2].length - 1,
+    end: caret,
   };
 }
 
 export default function Hero() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { currentUser, prompts, savedIds } = useApp();
+  const { currentUser, prompts, savedIds, registerGenerationJob } = useApp();
   const { image } = useLocale();
 
   const [query, setQuery] = useState('');
+  const [composerMode, setComposerMode] = useState('standard');
   const [retouchImage, setRetouchImage] = useState(null);
   const [retouchImagePreview, setRetouchImagePreview] = useState('');
   const [dragOver, setDragOver] = useState(false);
-  const [showGenerate, setShowGenerate] = useState(false);
-  const [generationParams, setGenerationParams] = useState(null);
   const [composerModel, setComposerModel] = useState(DEFAULT_IMAGE_MODEL);
   const [composerImageSize, setComposerImageSize] = useState('2K');
   const [composerAspectRatio, setComposerAspectRatio] = useState('auto');
-  const [composerMention, setComposerMention] = useState(null);
+  // 引用池：{ refIndex -> prompt }，@ref:N 的 N 指向这里的图片
+  const [mentionPool, setMentionPool] = useState([]);
   const [showMentionPicker, setShowMentionPicker] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
   const [tryComposerOpen, setTryComposerOpen] = useState(false);
@@ -57,8 +77,9 @@ export default function Hero() {
   const [refineError, setRefineError] = useState('');
   const fileRef = useRef(null);
   const composerInputRef = useRef(null);
+  const mentionOverlayRef = useRef(null);
   const savedImagePrompts = prompts.filter(prompt => savedIds.has(prompt.id) && prompt.imageUrl);
-  const composerModelOptions = IMAGE_MODEL_OPTIONS;
+  const composerModelOptions = VISIBLE_IMAGE_MODEL_OPTIONS;
 
   useEffect(() => {
     const handleTryPrompt = (event) => {
@@ -66,11 +87,12 @@ export default function Hero() {
       if (!prompt) return;
 
       setQuery(prompt);
+      setComposerMode('standard');
       setTryComposerOpen(true);
       setTryQueueError('');
       setRetouchImage(null);
       setRetouchImagePreview('');
-      setComposerMention(null);
+      setMentionPool([]);
       setShowMentionPicker(false);
       if (fileRef.current) fileRef.current.value = '';
       requestAnimationFrame(() => {
@@ -84,7 +106,7 @@ export default function Hero() {
 
   const handleRetouchFile = (file) => {
     if (!file || !file.type.startsWith('image/')) return;
-    setComposerMention(null);
+    setMentionPool([]);
     if (!getImageModelConfig(composerModel).supportsEdit) setComposerModel(EDITABLE_MODEL);
     setRetouchImage(file);
     const reader = new FileReader();
@@ -106,17 +128,35 @@ export default function Hero() {
     if (fileRef.current) fileRef.current.value = '';
   };
 
-  const removeComposerMention = () => {
-    setComposerMention(null);
+  const removeComposerMention = (refIndex) => {
+    setMentionPool(pool => pool.filter(item => item.refIndex !== refIndex));
+    setQuery(text => text.replace(new RegExp(`(^|[\\s（(《【「,，。.、;；!！?？${CJK}])@ref:${refIndex}(?=$|[\\s（(《【「,，。.、;；!！?？${CJK}])`, 'g'), '$1').trim());
     setShowMentionPicker(false);
   };
 
   const handleComposerQueryChange = (value) => {
     setQuery(value);
     setRefineError('');
-    const context = getMentionContext(value);
+    // 用户开始输入时自动清掉 composer 内部的错误/摘要条，避免占用输入区
+    setTryQueueError(current => current ? '' : current);
+    // 引用池与文本中的 @ref:N token 保持同步：token 被手动删掉时，对应引用也移除
+    const usedRefs = new Set(extractMentionRefs(value));
+    setMentionPool(pool => {
+      const kept = pool.filter(item => usedRefs.has(item.refIndex));
+      return kept.length === pool.length ? pool : kept;
+    });
+    const context = getMentionContext(value, composerInputRef.current?.selectionStart);
     setMentionQuery(context?.query || '');
     setShowMentionPicker(Boolean(context));
+  };
+
+  // Keep the highlight overlay + textarea perfectly aligned while scrolling/typing.
+  const syncMentionOverlay = () => {
+    const overlay = mentionOverlayRef.current;
+    const input = composerInputRef.current;
+    if (!overlay || !input) return;
+    overlay.scrollTop = input.scrollTop;
+    overlay.scrollLeft = input.scrollLeft;
   };
 
   const handleRefinePrompt = async () => {
@@ -125,21 +165,22 @@ export default function Hero() {
 
     setIsRefiningPrompt(true);
     setRefineError('');
+    // 引用 token 原样保留：AI 被要求在输出中原样保留 @ref:N
     try {
       const result = await api.refinePrompt({
         prompt,
-        mode: retouchImage || composerMention ? 'retouch' : 'text',
+        mode: retouchImage || mentionPool.length > 0 ? 'retouch' : 'text',
       });
       const refinedPrompt = result?.refinedPrompt?.trim();
       if (!refinedPrompt) throw new Error(t('hero.refineError'));
 
       setQuery(refinedPrompt);
-      setMentionQuery('');
       setShowMentionPicker(false);
     } catch (error) {
       setRefineError(error?.status && error.status < 500
         ? error.message
         : t('hero.refineError'));
+      showToast(error?.status && error.status < 500 ? error.message : t('hero.refineError'), 'error');
     } finally {
       setIsRefiningPrompt(false);
     }
@@ -153,37 +194,35 @@ export default function Hero() {
   };
 
   const handleMentionSelect = (prompt) => {
-    const context = getMentionContext(query);
+    const caret = composerInputRef.current?.selectionStart;
+    const context = getMentionContext(query, typeof caret === 'number' ? caret : query.length);
+    const refIndex = mentionPool.length + 1;
+    const token = `@ref:${refIndex}`;
     if (context) {
-      const before = query.slice(0, context.start).trimEnd();
-      const after = query.slice(context.end).trimStart();
-      setQuery([before, after].filter(Boolean).join(' '));
+      const before = query.slice(0, context.start);
+      const after = query.slice(context.end);
+      const glueBefore = before && !/[\s（(《【「,，。.、;；!！?？]$/.test(before) ? ' ' : '';
+      const glueAfter = after && !/^\s/.test(after) ? ' ' : '';
+      setQuery(`${before}${glueBefore}${token} ${glueAfter}${after}`.replace(/\s{2,}/g, ' '));
+    } else {
+      setQuery(`${query ? `${query.trimEnd()} ` : ''}${token} `);
     }
-    setComposerMention(prompt);
+    setMentionPool(pool => [...pool, { refIndex, prompt }]);
     if (!getImageModelConfig(composerModel).supportsEdit) setComposerModel(EDITABLE_MODEL);
     setShowMentionPicker(false);
     setMentionQuery('');
     setRetouchImage(null);
     setRetouchImagePreview('');
     if (fileRef.current) fileRef.current.value = '';
+    requestAnimationFrame(() => composerInputRef.current?.focus());
   };
 
   const handleComposerModelChange = (value) => {
-    const hasReference = Boolean(retouchImage || composerMention);
+    const hasReference = Boolean(retouchImage || mentionPool.length > 0);
     setComposerModel(hasReference && !getImageModelConfig(value).supportsEdit ? EDITABLE_MODEL : value);
   };
 
-  const handleGenerateClick = (params) => {
-    if (!currentUser) {
-      navigate('/auth', { state: { from: '/' } });
-      return;
-    }
-    setGenerationParams(params);
-    setShowGenerate(true);
-    trackAction('act_generate_start', { source: 'hero', mode: params.mode });
-  };
-
-  const handleTryQueueSubmit = async (prompt) => {
+  const handleQueueSubmit = async (prompt) => {
     if (!currentUser) {
       navigate('/auth', { state: { from: '/' } });
       return;
@@ -192,9 +231,15 @@ export default function Hero() {
     setIsQueueingTry(true);
     setTryQueueError('');
 
-    const referencePrompt = retouchImage || composerMention;
-    const mode = referencePrompt ? 'edit' : 'text';
-    const model = referencePrompt && !getImageModelConfig(composerModel).supportsEdit
+    // 根本方案：解析确定性 token @ref:N，而不是猜测自然语言里的 "@xxx"
+    const usedRefs = extractMentionRefs(prompt);
+    const referenceImages = usedRefs
+      .map(refIndex => mentionPool.find(item => item.refIndex === refIndex))
+      .filter(Boolean)
+      .map(item => item.prompt)
+    const firstReferencePrompt = retouchImage || referenceImages[0] || null;
+    const mode = firstReferencePrompt ? 'edit' : 'text';
+    const model = firstReferencePrompt && !getImageModelConfig(composerModel).supportsEdit
       ? EDITABLE_MODEL
       : composerModel;
     const inferredCategory = normalizePromptCategory({
@@ -213,7 +258,7 @@ export default function Hero() {
           imageSize: composerImageSize,
         },
         mode,
-        prompt,
+        prompt: stripMentionRefs(prompt),
         negativePrompt: '',
         category: inferredCategory,
       };
@@ -222,22 +267,23 @@ export default function Hero() {
         const { url } = await api.uploadImage(retouchImage);
         jobPayload.referenceImageUrl = url;
         jobPayload.editStrength = 0.6;
-      } else if (composerMention?.imageUrl) {
-        jobPayload.referenceImageUrl = composerMention.imageUrl;
+      } else if (referenceImages[0]?.imageUrl) {
+        jobPayload.referenceImageUrl = referenceImages[0].imageUrl;
         jobPayload.editStrength = 0.6;
       }
 
       const jobResponse = await api.createGenJob(jobPayload);
       const jobId = jobResponse?.job?.id || jobResponse?.id;
       if (!jobId) throw new Error(t('hero.queueError'));
+      registerGenerationJob(jobResponse?.job || jobResponse);
 
-      trackAction('act_try_queue_success', { mode, model, category: inferredCategory });
+      trackAction('act_queue_success', { mode, model, category: inferredCategory });
       showToast(t('hero.queueToast'), 'success');
       setTryComposerOpen(false);
       setQuery('');
+      setMentionPool([]);
       setRetouchImage(null);
       setRetouchImagePreview('');
-      setComposerMention(null);
       setShowMentionPicker(false);
       if (fileRef.current) fileRef.current.value = '';
     } catch (err) {
@@ -245,7 +291,7 @@ export default function Hero() {
         navigate('/auth', { state: { from: '/' } });
       } else {
         setTryQueueError(err.message || t('hero.queueError'));
-        trackAction('act_try_queue_fail', {
+        trackAction('act_queue_fail', {
           mode,
           model,
           category: inferredCategory,
@@ -257,42 +303,165 @@ export default function Hero() {
     }
   };
 
+  const handleAgentSubmit = async (prompt) => {
+    if (!currentUser) {
+      navigate('/auth', { state: { from: '/' } });
+      return;
+    }
+    if (!prompt.trim()) {
+      setTryQueueError(t('hero.agentPromptRequired'));
+      return;
+    }
+
+    setIsQueueingTry(true);
+    setTryQueueError('');
+
+    try {
+      // 引用池展开为上下文图片，序号与文本中的 @ref:N 一致
+      const contextImages = mentionPool.map(item => ({
+        title: item.prompt.category || t('hero.mentionSavedImage'),
+        src: item.prompt.imageUrl,
+      }));
+      if (retouchImage) {
+        const { url } = await api.uploadImage(retouchImage);
+        if (!url) throw new Error(t('hero.agentReferenceUploadError'));
+        contextImages.push({ title: t('hero.agentUploadedReference'), src: url });
+      }
+
+      const response = await api.runAgent({
+        agentId: DEFAULT_AGENT_ID,
+        prompt: stripMentionRefs(prompt),
+        maxSteps: 10000,
+        context: {
+          imageModel: composerModel,
+          imageSize: composerImageSize,
+          imageAspectRatio: composerAspectRatio === 'auto' ? '1:1' : composerAspectRatio,
+          images: contextImages,
+        },
+      });
+      const steps = getAgentSteps(response);
+      const runKey = response?.runId || Date.now();
+
+      const imageJobs = steps
+        .filter(step => step?.result?.type === 'image_job' && step.result.job?.id)
+        .map(step => step.result.job);
+      imageJobs.forEach(job => registerGenerationJob(job));
+
+      const storyboardShots = collectAgentStoryboardShots(response, {
+        runId: runKey,
+        fallbackSrc: contextImages[0]?.src || '',
+        referenceImages: contextImages.map((image, index) => ({
+          index,
+          title: image.title || '',
+          meta: image.meta || '',
+          url: image.src,
+        })),
+      });
+      const referenceAssets = collectAgentReferenceAssets(response, { runId: runKey });
+      const videoOutputs = collectAgentVideoOutputs(response, {
+        runId: runKey,
+        label: t('hero.agentVideoLabel'),
+      });
+
+      const hasWorkspaceArtifacts = imageJobs.length > 0
+        || storyboardShots.length > 0
+        || referenceAssets.length > 0
+        || videoOutputs.length > 0;
+      const message = response?.message || t('hero.agentCompleted');
+      let savedConversationId = '';
+      let persistenceError = null;
+
+      if (response?.ok !== false && hasWorkspaceArtifacts) {
+        savedConversationId = `conversation-agent-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const now = new Date().toISOString();
+        try {
+          const saved = await api.saveWorkspaceConversation(savedConversationId, {
+            id: savedConversationId,
+            title: prompt.trim().slice(0, 80) || 'Agent 工作区',
+            messages: [
+              {
+                id: `message-user-${runKey}`,
+                role: 'user',
+                text: prompt.trim(),
+                time: '刚刚',
+              },
+              {
+                id: `message-agent-${runKey}`,
+                role: 'assistant',
+                text: message,
+                time: '刚刚',
+                status: 'completed',
+              },
+            ],
+            workspace: {
+              shots: storyboardShots,
+              referenceAssets,
+              agentOutputs: videoOutputs,
+              images: [],
+              videos: [],
+            },
+            createdAt: now,
+            updatedAt: now,
+          });
+          if (saved?.conversation?.id !== savedConversationId) {
+            throw new Error('云端没有返回已保存的工作区对话');
+          }
+        } catch (error) {
+          persistenceError = error;
+        }
+      }
+
+      if (response?.ok === false) {
+        // Agent 失败原因只走 toast + 可关闭的错误条，长摘要不塞进输入区
+        showToast(message, 'error');
+        setTryQueueError(message.length > 120 ? message.slice(0, 120) + '…' : message);
+      } else if (persistenceError) {
+        showToast(`生成已完成，但工作区云端保存失败：${persistenceError.message || '未知错误'}`, 'error');
+      } else {
+        showToast(message, 'success');
+      }
+
+      if (response?.ok !== false) {
+        setQuery('');
+        setMentionPool([]);
+        setRetouchImage(null);
+        setRetouchImagePreview('');
+        setShowMentionPicker(false);
+        if (fileRef.current) fileRef.current.value = '';
+      }
+
+      if (hasWorkspaceArtifacts && savedConversationId && !persistenceError) {
+        navigate(`/workspace?conversation=${encodeURIComponent(savedConversationId)}`);
+      }
+    } catch (error) {
+      if (error.status === 401) {
+        navigate('/auth', { state: { from: '/' } });
+      } else {
+        setTryQueueError(error.message || t('hero.agentError'));
+        showToast(error.message || t('hero.agentError'), 'error');
+      }
+    } finally {
+      setIsQueueingTry(false);
+    }
+  };
+
   const handleComposerSubmit = async (event) => {
     event.preventDefault();
     const prompt = query.trim();
-    if (!prompt && !retouchImage && !composerMention) return;
+    if (!prompt && !retouchImage && mentionPool.length === 0) return;
 
-    if (tryComposerOpen) {
-      await handleTryQueueSubmit(prompt);
+    if (composerMode === 'agent') {
+      await handleAgentSubmit(prompt);
       return;
     }
-
-    if (retouchImage || composerMention) {
-      handleGenerateClick({
-        mode: 'edit',
-        prompt,
-        image: retouchImage,
-        referenceImageUrl: composerMention?.imageUrl || '',
-        model: composerModel,
-        aspectRatio: composerAspectRatio,
-        imageSize: composerImageSize,
-      });
-      return;
-    }
-
-    navigate(`/?search=${encodeURIComponent(prompt)}`);
+    await handleQueueSubmit(prompt);
   };
 
-  const handleGenerateSuccess = useCallback(() => {
-    setShowGenerate(false);
-    showToast(t('hero.successToast'), 'success');
-  }, [t]);
-
   const heroBg = image('hero/bg');
-  const hasComposerContent = Boolean(query.trim() || retouchImage || composerMention);
-  const composerSubmitLabel = tryComposerOpen
-    ? (isQueueingTry ? t('hero.queueing') : t('hero.queueBtn'))
-    : (retouchImage || composerMention ? t('hero.generateBtn') : t('hero.sendBtn'));
+  const hasComposerContent = Boolean(query.trim() || retouchImage || mentionPool.length > 0);
+  const composerSubmitLabel = isQueueingTry
+    ? composerMode === 'agent' ? t('hero.agentRunning') : t('hero.queueing')
+    : composerMode === 'agent' ? t('hero.agentRun') : t('hero.generateBtn');
   const composerImageSizeOptions = COMPOSER_IMAGE_SIZES.map(value => ({ value, label: value }));
   const composerAspectRatioOptions = COMPOSER_ASPECT_RATIOS.map(value => ({
     value,
@@ -335,6 +504,37 @@ export default function Hero() {
 
           <p className="hero__subtitle">{t('hero.subtitle')}</p>
 
+          {!tryComposerOpen && (
+            <div className="hero__mode-tabs" role="tablist" aria-label={t('hero.creationMode')}>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={composerMode === 'standard'}
+                className={`hero__mode-tab ${composerMode === 'standard' ? 'active' : ''}`}
+                onClick={() => {
+                  setComposerMode('standard');
+                  setTryQueueError('');
+                }}
+              >
+                <Image size={15} aria-hidden="true" />
+                <span>{t('hero.standardMode')}</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={composerMode === 'agent'}
+                className={`hero__mode-tab ${composerMode === 'agent' ? 'active' : ''}`}
+                onClick={() => {
+                  setComposerMode('agent');
+                  setTryQueueError('');
+                }}
+              >
+                <Bot size={15} aria-hidden="true" />
+                <span>{t('hero.agentMode')}</span>
+              </button>
+            </div>
+          )}
+
           {!tryComposerOpen && <form
             className={`hero__composer ${dragOver ? 'is-drag-over' : ''} ${tryComposerOpen ? 'hero__composer--floating' : ''}`}
             onSubmit={handleComposerSubmit}
@@ -348,16 +548,20 @@ export default function Hero() {
             onPaste={handlePaste}
           >
             <div className="hero__composer-input-wrap">
+              <MentionHighlight value={query} overlayRef={mentionOverlayRef} />
               <textarea
                 ref={composerInputRef}
                 className="hero__composer-input"
                 rows={4}
-                placeholder={retouchImagePreview || composerMention
+                placeholder={retouchImagePreview || mentionPool.length > 0
                   ? t('hero.composerWithImagePlaceholder')
                   : t('hero.composerPlaceholder')}
                 value={query}
                 onChange={event => handleComposerQueryChange(event.target.value)}
                 onKeyDown={handleComposerKeyDown}
+                onScroll={syncMentionOverlay}
+                onClick={() => handleComposerQueryChange(query)}
+                onKeyUp={() => handleComposerQueryChange(query)}
                 aria-label={t('hero.composerPlaceholder')}
               />
               {showMentionPicker && (
@@ -389,26 +593,26 @@ export default function Hero() {
               </div>
             )}
 
-            {composerMention && (
-              <div className="hero__composer-mention">
-                <img src={composerMention.imageUrl} alt="" />
+            {mentionPool.map(({ refIndex, prompt }) => (
+              <div key={refIndex} className="hero__composer-mention">
+                <img src={prompt.imageUrl} alt="" />
                 <span className="hero__composer-mention-copy">
                   <span className="hero__composer-mention-label">
                     <AtSign size={12} />
-                    {t('hero.mentionReference')}
+                    @ref:{refIndex}
                   </span>
-                  <strong>{composerMention.category || t('hero.mentionSavedImage')}</strong>
+                  <strong>{prompt.category || t('hero.mentionSavedImage')}</strong>
                 </span>
                 <button
                   type="button"
                   className="hero__composer-mention-remove"
-                  onClick={removeComposerMention}
+                  onClick={() => removeComposerMention(refIndex)}
                   aria-label={t('stylePanel.removeRef')}
                 >
                   <X size={13} />
                 </button>
               </div>
-            )}
+            ))}
 
             <div className="hero__composer-toolbar">
               <div className="hero__composer-left">
@@ -460,7 +664,7 @@ export default function Hero() {
                     renderOption={option => (
                       <span className="hero__composer-model-option">
                         <strong>{option?.shortLabel || option?.label}</strong>
-                        <small>{option?.modelName || option?.value}</small>
+                        <small>{option?.capability}</small>
                       </span>
                     )}
                   />
@@ -497,9 +701,7 @@ export default function Hero() {
                 </button>
               </div>
             </div>
-            {(tryQueueError || refineError) && (
-              <p className="hero__composer-error">{tryQueueError || refineError}</p>
-            )}
+
           </form>}
         </motion.div>
       </div>
@@ -520,14 +722,13 @@ export default function Hero() {
           composerInputRef={composerInputRef}
           fileRef={fileRef}
           hasComposerContent={hasComposerContent}
-          composerMention={composerMention}
+          mentionPool={mentionPool}
           showMentionPicker={showMentionPicker}
           mentionQuery={mentionQuery}
           savedImagePrompts={savedImagePrompts}
           isQueueing={isQueueingTry}
           isRefining={isRefiningPrompt}
           submitLabel={composerSubmitLabel}
-          refineError={refineError}
           error={tryQueueError || refineError}
           onSubmit={handleComposerSubmit}
           onRefine={handleRefinePrompt}
@@ -541,30 +742,13 @@ export default function Hero() {
           onKeyDown={handleComposerKeyDown}
           onSelectMention={handleMentionSelect}
           onRemoveMention={removeComposerMention}
+          onSyncMentionOverlay={syncMentionOverlay}
           onPaste={handlePaste}
           onDropFile={handleRetouchFile}
           onRemoveImage={removeRetouchImage}
         />
       )}
 
-      {showGenerate && (
-        <GenerateModal
-          initialPrompt={generationParams?.prompt || ''}
-          initialMode={generationParams?.mode || 'text'}
-          initialImage={generationParams?.image || null}
-          initialReferenceImageUrl={generationParams?.referenceImageUrl || ''}
-          initialModel={generationParams?.model || composerModel}
-          initialInstruction={generationParams?.prompt || ''}
-          initialAspectRatio={generationParams?.aspectRatio || '1:1'}
-          initialImageSize={generationParams?.imageSize || '1K'}
-          autoCloseOnSuccess
-          onSuccess={handleGenerateSuccess}
-          onClose={() => {
-            setShowGenerate(false);
-            setGenerationParams(null);
-          }}
-        />
-      )}
     </section>
   );
 }

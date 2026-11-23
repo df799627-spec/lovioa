@@ -76,7 +76,7 @@
 }
 
 .prompt-detail__style-panel-title {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 1.5rem;
   font-weight: 400;
   color: var(--color-text);
@@ -97,6 +97,12 @@
   box-shadow: var(--shadow-xl);
 }
 
+.prompt-detail__image-wrap--empty {
+  background:
+    linear-gradient(135deg, color-mix(in oklab, var(--brand) 8%, transparent), transparent),
+    var(--color-bg);
+}
+
 .prompt-detail__image {
   width: 100%;
   aspect-ratio: 4/3;
@@ -104,12 +110,30 @@
   display: block;
 }
 
+.prompt-detail__image-placeholder {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-8);
+  color: var(--color-secondary);
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.prompt-detail__image-placeholder svg {
+  color: var(--color-accent);
+}
+
 .prompt-detail__image-badge {
   position: absolute;
   top: var(--space-4);
   right: var(--space-4);
   padding: var(--space-1) var(--space-3);
-  background: rgba(28, 25, 23, 0.7);
+  background: color-mix(in oklab, var(--foreground) 70%, transparent);
   color: white;
   font-size: 0.72rem;
   font-weight: 500;
@@ -161,7 +185,7 @@
 }
 
 .prompt-detail__author-name {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 1.2rem;
   font-weight: 500;
   color: var(--color-text);
@@ -206,7 +230,7 @@
   font-size: 0.72rem;
   font-weight: 500;
   border-radius: var(--radius-full);
-  border: 1px solid rgba(181, 98, 42, 0.2);
+  border: 1px solid color-mix(in oklab, var(--brand) 20%, transparent);
   transition: all var(--transition-fast);
   text-transform: none;
   letter-spacing: 0;
@@ -221,9 +245,9 @@
 }
 
 .prompt-detail__copy-btn.copied {
-  background: #4ade80;
+  background: var(--success);
   color: white;
-  border-color: #4ade80;
+  border-color: var(--success);
 }
 
 .prompt-detail__prompt-text {
@@ -301,7 +325,7 @@
 }
 
 .prompt-detail__related-title {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 1.5rem;
   font-weight: 400;
   color: var(--color-text);
@@ -329,7 +353,7 @@
   padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
   gap: 8px;
   z-index: 50;
-  box-shadow: 0 -6px 32px rgba(28,25,23,0.1);
+  box-shadow: 0 -6px 32px var(--shadow-md);
 }
 
 .prompt-detail__mobile-bar-btn {
@@ -361,7 +385,7 @@
 .prompt-detail__mobile-bar-btn--secondary {
   background: var(--color-accent-soft);
   color: var(--color-accent);
-  border: 1px solid rgba(181, 98, 42, 0.2);
+  border: 1px solid color-mix(in oklab, var(--brand) 20%, transparent);
 }
 
 .prompt-detail__mobile-bar-btn--secondary:hover {

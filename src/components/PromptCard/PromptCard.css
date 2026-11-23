@@ -4,24 +4,35 @@
 
 .prompt-card {
   position: relative;
-  background: var(--color-surface);
-  border-radius: var(--radius-xl);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2xl);
   overflow: hidden;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-  transition: transform 500ms cubic-bezier(0.22, 1, 0.36, 1),
-              box-shadow 500ms cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: var(--shadow-card);
+  transition: transform 200ms var(--ease-default),
+              box-shadow 200ms var(--ease-default),
+              border-color 200ms var(--ease-default);
   will-change: transform;
 }
 
 .prompt-card:hover {
-  transform: translateY(-6px) scale(1.005);
-  box-shadow: 0 24px 64px rgba(0,0,0,0.12), 0 8px 24px rgba(0,0,0,0.08);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
 }
 
-.prompt-card__link {
+.prompt-card__image-link {
+  position: absolute;
+  inset: 0;
   display: block;
   text-decoration: none;
   color: inherit;
+  z-index: 0;
+}
+
+.prompt-card__image-link:focus-visible,
+.prompt-card__content-link:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
 }
 
 /* ── Image ──────────────────────────────────────────────── */
@@ -29,17 +40,42 @@
   position: relative;
   aspect-ratio: 2 / 3;
   overflow: hidden;
-  background: #EDE9E4;
+  background: var(--media-placeholder);
+}
+
+.prompt-card__image-wrap--empty {
+  background:
+    linear-gradient(135deg, color-mix(in oklab, var(--brand) 8%, transparent), transparent),
+    var(--color-bg);
+}
+
+.prompt-card__image-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px;
+  color: var(--color-secondary);
+  text-align: center;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.prompt-card__image-placeholder svg {
+  color: var(--color-accent);
 }
 
 .prompt-card--compact {
   border-radius: 10px;
-  box-shadow: 0 1px 2px rgba(28, 25, 23, 0.05);
+  box-shadow: 0 1px 2px color-mix(in oklab, var(--foreground) 5%, transparent);
 }
 
 .prompt-card--compact:hover {
   transform: translateY(-3px);
-  box-shadow: 0 10px 24px rgba(28, 25, 23, 0.12);
+  box-shadow: 0 10px 24px var(--shadow-lg);
 }
 
 .prompt-card--compact .prompt-card__image-wrap {
@@ -60,6 +96,10 @@
   object-fit: cover;
   transition: transform 700ms cubic-bezier(0.22, 1, 0.36, 1),
               filter 400ms ease;
+}
+
+.prompt-card__image-wrap--empty::after {
+  display: none;
 }
 
 .prompt-card:hover .prompt-card__image {
@@ -93,8 +133,8 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: var(--color-dark);
-  color: white;
+  background: var(--button-solid);
+  color: var(--button-solid-foreground);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -118,10 +158,12 @@
   align-items: flex-end;
   z-index: 3;
   padding: 20px;
+  pointer-events: none;
 }
 
 .prompt-card:hover .prompt-card__overlay {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .prompt-card__overlay-content {
@@ -148,15 +190,16 @@
 }
 
 .prompt-card__action-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
-  background: rgba(255,255,255,0.1);
-  color: rgba(255,255,255,0.9);
-  font-size: 0.72rem;
-  font-weight: 500;
-  border-radius: 100px;
+  gap: var(--control-gap);
+  height: calc(var(--control-h-sm) - 2px);
+  padding: 0 var(--control-px-sm);
+  background: rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.92);
+  font-size: var(--text-xs);
+  font-weight: var(--control-font-weight);
+  border-radius: var(--radius-xl);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255,255,255,0.15);
   transition: background 200ms ease, border-color 200ms ease;
@@ -170,9 +213,9 @@
 }
 
 .prompt-card__action-btn.copied {
-  background: rgba(74, 222, 128, 0.25);
-  border-color: rgba(74, 222, 128, 0.4);
-  color: #86efac;
+  background: color-mix(in oklab, var(--success) 25%, transparent);
+  border-color: color-mix(in oklab, var(--success) 40%, transparent);
+  color: color-mix(in oklab, var(--success) 65%, var(--foreground));
 }
 
 .prompt-card__try-btn {
@@ -180,7 +223,7 @@
   border: 0;
   background: transparent;
   cursor: pointer;
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 0.9rem;
   font-weight: 400;
   color: rgba(255,255,255,0.85);
@@ -189,13 +232,19 @@
 }
 
 .prompt-card:hover .prompt-card__try-btn {
-  color: #E8C9A8;
+  color: var(--button-solid-foreground);
   transform: translateX(3px);
 }
 
 /* ── Card Footer ────────────────────────────────────────── */
 .prompt-card__content {
   padding: 9px 10px 0;
+}
+
+.prompt-card__content-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
 }
 
 .prompt-card__title {
@@ -308,9 +357,9 @@
 }
 
 .prompt-card__category {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 0.65rem;
-  font-style: italic;
+  font-style: normal;
   color: var(--color-secondary);
   font-weight: 300;
   white-space: nowrap;
@@ -324,14 +373,15 @@
 }
 
 .prompt-card__action {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 3px;
-  padding: 6px 8px;
-  color: var(--color-secondary);
-  font-size: 0.68rem;
-  font-weight: 400;
-  border-radius: 100px;
+  padding: 0 8px;
+  height: var(--control-h-xs);
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-normal);
+  border-radius: var(--radius-lg);
   transition: color 200ms ease, background 200ms ease;
   /* Larger touch target on mobile */
   min-width: 32px;
@@ -340,8 +390,8 @@
 }
 
 .prompt-card__action:hover {
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
+  background: var(--muted);
+  color: var(--foreground);
 }
 
 .prompt-card__action.liked {
@@ -354,9 +404,31 @@
 
 /* ── Mobile: Show overlay on tap (not hover) ───────────── */
 @media (hover: none) and (pointer: coarse) {
-  /* On touch devices, hide hover-based overlay */
+  /* Keep the core actions visible without requiring a hover gesture. */
   .prompt-card__overlay {
+    inset: auto 0 0;
+    padding: 9px 10px;
+    background: linear-gradient(to top, rgba(12, 10, 8, 0.95), rgba(12, 10, 8, 0.72));
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .prompt-card__prompt-text {
     display: none;
+  }
+
+  .prompt-card__overlay-actions {
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  .prompt-card__action-btn {
+    padding: 5px 9px;
+    font-size: 0.66rem;
+  }
+
+  .prompt-card__try-btn {
+    font-size: 0.78rem;
   }
 
   /* Always show footer actions more prominently */

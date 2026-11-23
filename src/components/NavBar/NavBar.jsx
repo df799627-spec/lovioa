@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Menu, X, Upload, Bookmark, History, LogOut, User, Globe, Shield, CreditCard, Coins, Wand2, Palette } from 'lucide-react';
+import { Sparkles, Menu, X, Upload, Bookmark, History, ListTodo, LogOut, User, Globe, Shield, CreditCard, Coins, Wand2, Palette, PanelsTopLeft } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
@@ -29,7 +29,7 @@ export default function NavBar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
-  const { savedIds, generationHistory, currentUser, logout, credits } = useApp();
+  const { savedIds, generationHistory, generationQueueCount, currentUser, logout, credits } = useApp();
   const { theme, setTheme } = useTheme();
   const userMenuRef = useRef(null);
   const langMenuRef = useRef(null);
@@ -77,12 +77,6 @@ export default function NavBar() {
 
           <div className="navbar__links">
             <Link to="/" className="navbar__link">{t('nav.explore')}</Link>
-            <Link to="/subscribe" className="navbar__link">
-              <CreditCard size={13} />
-              {t('nav.subscribe')}
-            </Link>
-            <Link to="/terms" className="navbar__legal-link">{t('legal.nav.terms')}</Link>
-            <Link to="/privacy" className="navbar__legal-link">{t('legal.nav.privacy')}</Link>
             <Link to="/saved" className={`navbar__link ${savedIds.size > 0 ? 'navbar__link--badge' : ''}`}>
               <Bookmark size={13} />
               {t('nav.saved')} {savedIds.size > 0 && <span className="navbar__badge">{savedIds.size}</span>}
@@ -91,9 +85,26 @@ export default function NavBar() {
               <History size={13} />
               {t('nav.history')} {generationHistory.length > 0 && <span className="navbar__badge">{generationHistory.length}</span>}
             </Link>
+            <Link
+              to="/history"
+              className={`navbar__queue-link ${generationQueueCount > 0 ? 'navbar__queue-link--active' : ''}`}
+              aria-label={t('hero.queueBtn')}
+              title={t('hero.queueBtn')}
+            >
+              <ListTodo size={16} />
+              {generationQueueCount > 0 && <span className="navbar__queue-badge">{generationQueueCount > 99 ? '99+' : generationQueueCount}</span>}
+            </Link>
+            <Link to="/skills" className="navbar__link">
+              <Sparkles size={13} />
+              {t('nav.skills')}
+            </Link>
             <Link to="/editor" className="navbar__link">
               <Wand2 size={13} />
               {t('nav.editor')}
+            </Link>
+            <Link to="/workspace" className="navbar__link">
+              <PanelsTopLeft size={13} />
+              {t('nav.workspace')}
             </Link>
 
             <div className="navbar__lang-wrap" ref={langMenuRef}>
@@ -153,6 +164,9 @@ export default function NavBar() {
                     <Link to="/subscribe" className="navbar__user-menu-item" onClick={() => setUserMenuOpen(false)}>
                       <CreditCard size={14} /> {t('nav.subscribe')}
                     </Link>
+                    <Link to="/redeem" className="navbar__user-menu-item" onClick={() => setUserMenuOpen(false)}>
+                      <CreditCard size={14} /> {t('nav.redeem')}
+                    </Link>
                     <Link to="/balance" className="navbar__user-menu-item" onClick={() => setUserMenuOpen(false)}>
                       <Coins size={14} />
                       {t('nav.credits')}
@@ -201,6 +215,9 @@ export default function NavBar() {
           <Link to="/subscribe" className="mobile-drawer__link" onClick={() => setMobileOpen(false)}>
             <CreditCard size={16} /> {t('nav.subscribe')}
           </Link>
+          <Link to="/redeem" className="mobile-drawer__link" onClick={() => setMobileOpen(false)}>
+            <CreditCard size={16} /> {t('nav.redeem')}
+          </Link>
           <Link to="/terms" className="mobile-drawer__link" onClick={() => setMobileOpen(false)}>
             {t('legal.nav.terms')}
           </Link>
@@ -213,8 +230,17 @@ export default function NavBar() {
           <Link to="/history" className="mobile-drawer__link" onClick={() => setMobileOpen(false)}>
             <History size={16} /> {t('nav.history')} {generationHistory.length > 0 && <span className="mobile-drawer__badge">{generationHistory.length}</span>}
           </Link>
+          <Link to="/skills" className="mobile-drawer__link" onClick={() => setMobileOpen(false)}>
+            <Sparkles size={16} /> {t('nav.skills')}
+          </Link>
+          <Link to="/history" className="mobile-drawer__link" onClick={() => setMobileOpen(false)}>
+            <ListTodo size={16} /> {t('hero.queueBtn')} {generationQueueCount > 0 && <span className="mobile-drawer__badge">{generationQueueCount}</span>}
+          </Link>
           <Link to="/editor" className="mobile-drawer__link" onClick={() => setMobileOpen(false)}>
             <Wand2 size={16} /> {t('nav.editor')}
+          </Link>
+          <Link to="/workspace" className="mobile-drawer__link" onClick={() => setMobileOpen(false)}>
+            <PanelsTopLeft size={16} /> {t('nav.workspace')}
           </Link>
           <div className="mobile-drawer__lang-row">
             <Globe size={16} />

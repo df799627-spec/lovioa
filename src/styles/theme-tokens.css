@@ -1,0 +1,368 @@
+/* ── Theme tokens ───────────────────────────────────────────────────────────
+   Source of truth for the two app themes:
+
+   - light → `data-theme="editorial"` (default), light palette
+   - dark  → `data-theme="studio"`, dark palette
+
+   Token naming mirrors the reference design system:
+   --background / --foreground / --card / --popover / --primary / --secondary /
+   --muted / --accent / --brand / --success / --destructive / --highlight,
+   plus --border, --input, --ring, --radius, sidebar, chart and accent tones.
+
+   Component styles keep using the legacy `--color-*` aliases, so both token
+   sets resolve from here.
+*/
+
+:root,
+:root[data-theme='editorial'] {
+  /* shadcn-style surface tokens */
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+  --card: #fff;
+  --card-foreground: #0a0a0a;
+  --popover: #fff;
+  --popover-foreground: #0a0a0a;
+  --primary: #171717;
+  --primary-foreground: #fafafa;
+  /* Solid action button: the neutral, high-contrast fill used for primary CTAs */
+  --button-solid: var(--primary);
+  --button-solid-foreground: var(--primary-foreground);
+  --button-solid-hover: color-mix(in oklab, var(--primary) 80%, var(--background));
+  /* Brand action button: the accent fill for the main call to action */
+  --button-brand: var(--brand);
+  --button-brand-foreground: var(--brand-foreground);
+  --button-brand-hover: color-mix(in oklab, var(--brand) 85%, #000);
+  --secondary: #f5f5f5;
+  --secondary-foreground: #171717;
+  --muted: #f5f5f5;
+  --muted-foreground: #737373;
+  --accent: #f5f5f5;
+  --accent-foreground: #171717;
+  --brand: #f54e00;
+  --brand-foreground: #fafaf9;
+  --success: #258651;
+  --success-foreground: #ffffff;
+  --destructive: #e40014;
+  --destructive-foreground: #ffffff;
+  --highlight: rgba(10, 10, 10, 0.05);
+
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --ring: #a1a1a1;
+
+  --radius: 0.625rem;
+
+  /* ── Design scale (mirrors the reference system) ────────────────────── */
+  --text-2xs: 0.6875rem;
+  --text-2xs-lh: 1.4;
+  --text-xs: 0.75rem;
+  --text-xs-lh: 1.3333;
+  --text-sm: 0.875rem;
+  --text-sm-lh: 1.4286;
+  --text-base: 1rem;
+  --text-base-lh: 1.5;
+  --text-lg: 1.125rem;
+  --text-lg-lh: 1.5556;
+  --text-xl: 1.25rem;
+  --text-xl-lh: 1.4;
+  --text-2xl: 1.5rem;
+  --text-2xl-lh: 1.3333;
+  --text-3xl: 1.875rem;
+  --text-3xl-lh: 1.2;
+  --text-4xl: 2.25rem;
+  --text-4xl-lh: 1.1111;
+  --text-5xl: 3rem;
+  --text-5xl-lh: 1;
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --tracking-tight: -0.025em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.025em;
+  --tracking-wider: 0.05em;
+  --tracking-widest: 0.1em;
+
+  --leading-tight: 1.25;
+  --leading-snug: 1.375;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+
+  /* Control metrics: h-7 / h-8 / h-9 / h-10 with px-2.5 / px-3 / px-4 */
+  --control-h-xs: 1.75rem;
+  --control-h-sm: 2rem;
+  --control-h-md: 2.25rem;
+  --control-h-lg: 2.5rem;
+  --control-px-xs: 0.625rem;
+  --control-px-sm: 0.75rem;
+  --control-px-md: 1rem;
+  --control-gap: 0.375rem;
+  --control-font-size: var(--text-sm);
+  --control-font-weight: var(--font-weight-medium);
+  --control-line-height: 1;
+
+  /* Radius scale: sm .6 / md .8 / lg 1 / xl 1.4 / 2xl 1.8 / 3xl 2.2 / 4xl 2.6 */
+  --radius-xs: 0.125rem;
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-default: 0.15s;
+  --blur-nav: 12px;
+
+  --sidebar: #fafafa;
+  --sidebar-foreground: #0a0a0a;
+  --sidebar-primary: #171717;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #f5f5f5;
+  --sidebar-accent-foreground: #171717;
+  --sidebar-border: #e5e5e5;
+  --sidebar-ring: #a1a1a1;
+
+  --chart-1: #d4d4d4;
+  --chart-2: #737373;
+  --chart-3: #525252;
+  --chart-4: #404040;
+  --chart-5: #262626;
+
+  /* Accent canvas tones used by previews and illustrations */
+  --morandi-sage: #b4c2b4;
+  --morandi-clay: #cfc2b1;
+  --morandi-dust: #d5beb9;
+  --morandi-slate: #acb5c1;
+  --morandi-lilac: #c2bac8;
+  --media-placeholder: var(--muted);
+  --skeleton-start: var(--muted);
+  --skeleton-mid: #e5ddd3;
+
+  /* Legacy component aliases */
+  --color-bg: var(--background);
+  --color-surface: var(--card);
+  --color-text: var(--foreground);
+  --color-secondary: var(--muted-foreground);
+  --color-accent: var(--brand);
+  --color-accent-hover: #d94400;
+  --color-accent-soft: color-mix(in oklab, var(--brand) 12%, transparent);
+  --color-accent-bg: color-mix(in oklab, var(--brand) 7%, transparent);
+  --color-accent-glow: color-mix(in oklab, var(--brand) 15%, transparent);
+  --color-border: var(--border);
+  --color-dark: var(--primary);
+  --color-dark-soft: color-mix(in oklab, var(--primary) 82%, var(--background));
+  --nav-bg: rgba(255, 255, 255, 0.88);
+  --nav-cta-text: var(--primary-foreground);
+
+  /* Typography */
+  --font-display: 'Noto Serif SC', 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'Inter', 'Noto Sans SC', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Layout + motion */
+  --nav-height: 64px;
+  --nav-height-mobile: 56px;
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+  --transition-slow: 400ms ease;
+  --transition-spring: 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Radius scale (driven by --radius) */
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(28, 25, 23, 0.06);
+  --shadow-md: 0 4px 12px rgba(28, 25, 23, 0.08);
+  --shadow-lg: 0 8px 24px rgba(28, 25, 23, 0.10);
+  --shadow-xl: 0 16px 48px rgba(28, 25, 23, 0.12);
+  --shadow-card: 0 2px 8px rgba(28, 25, 23, 0.06), 0 1px 2px rgba(28, 25, 23, 0.04);
+  --shadow-card-hover: 0 12px 32px rgba(28, 25, 23, 0.12), 0 4px 8px rgba(28, 25, 23, 0.08);
+  --shadow: var(--shadow-md);
+}
+
+:root[data-theme='studio'] {
+  /* shadcn-style surface tokens (dark) */
+  --background: #0a0a0a;
+  --foreground: #fafafa;
+  --card: #171717;
+  --card-foreground: #fafafa;
+  --popover: #171717;
+  --popover-foreground: #fafafa;
+  --primary: #e5e5e5;
+  --primary-foreground: #171717;
+  /* In dark mode the neutral CTA must stay high-contrast, not a light-gray block */
+  --button-solid: #fafafa;
+  --button-solid-foreground: #171717;
+  --button-solid-hover: #d4d4d4;
+  --button-brand: var(--brand);
+  --button-brand-foreground: var(--brand-foreground);
+  --button-brand-hover: color-mix(in oklab, var(--brand) 85%, #fff);
+  --secondary: #262626;
+  --secondary-foreground: #fafafa;
+  --muted: #262626;
+  --muted-foreground: #a1a1a1;
+  --accent: #262626;
+  --accent-foreground: #fafafa;
+  --brand: #f54e00;
+  --brand-foreground: #fafaf9;
+  --success: #49a46e;
+  --success-foreground: #171717;
+  --destructive: #ff6568;
+  --destructive-foreground: #171717;
+  --highlight: rgba(250, 250, 250, 0.06);
+
+  --border: rgba(255, 255, 255, 0.14);
+  --input: rgba(255, 255, 255, 0.18);
+  --ring: #a1a1a1;
+
+  --radius: 0.75rem;
+
+  /* ── Design scale (mirrors the reference system) ────────────────────── */
+  --text-2xs: 0.6875rem;
+  --text-2xs-lh: 1.4;
+  --text-xs: 0.75rem;
+  --text-xs-lh: 1.3333;
+  --text-sm: 0.875rem;
+  --text-sm-lh: 1.4286;
+  --text-base: 1rem;
+  --text-base-lh: 1.5;
+  --text-lg: 1.125rem;
+  --text-lg-lh: 1.5556;
+  --text-xl: 1.25rem;
+  --text-xl-lh: 1.4;
+  --text-2xl: 1.5rem;
+  --text-2xl-lh: 1.3333;
+  --text-3xl: 1.875rem;
+  --text-3xl-lh: 1.2;
+  --text-4xl: 2.25rem;
+  --text-4xl-lh: 1.1111;
+  --text-5xl: 3rem;
+  --text-5xl-lh: 1;
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --tracking-tight: -0.025em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.025em;
+  --tracking-wider: 0.05em;
+  --tracking-widest: 0.1em;
+
+  --leading-tight: 1.25;
+  --leading-snug: 1.375;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+
+  /* Control metrics: h-7 / h-8 / h-9 / h-10 with px-2.5 / px-3 / px-4 */
+  --control-h-xs: 1.75rem;
+  --control-h-sm: 2rem;
+  --control-h-md: 2.25rem;
+  --control-h-lg: 2.5rem;
+  --control-px-xs: 0.625rem;
+  --control-px-sm: 0.75rem;
+  --control-px-md: 1rem;
+  --control-gap: 0.375rem;
+  --control-font-size: var(--text-sm);
+  --control-font-weight: var(--font-weight-medium);
+  --control-line-height: 1;
+
+  /* Radius scale: sm .6 / md .8 / lg 1 / xl 1.4 / 2xl 1.8 / 3xl 2.2 / 4xl 2.6 */
+  --radius-xs: 0.125rem;
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-default: 0.15s;
+  --blur-nav: 12px;
+
+  --sidebar: #111111;
+  --sidebar-foreground: #fafafa;
+  --sidebar-primary: #e5e5e5;
+  --sidebar-primary-foreground: #171717;
+  --sidebar-accent: #262626;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: rgba(255, 255, 255, 0.12);
+  --sidebar-ring: #a1a1a1;
+
+  --chart-1: #404040;
+  --chart-2: #737373;
+  --chart-3: #a1a1a1;
+  --chart-4: #d4d4d4;
+  --chart-5: #fafafa;
+
+  /* Accent canvas tones used by previews and illustrations (dark variants) */
+  --morandi-sage: #333e33;
+  --morandi-clay: #463b2d;
+  --morandi-dust: #4a3834;
+  --morandi-slate: #313942;
+  --morandi-lilac: #3e3842;
+  --media-placeholder: var(--secondary);
+  --skeleton-start: var(--secondary);
+  --skeleton-mid: #2b2b2b;
+
+  /* Legacy component aliases */
+  --color-bg: var(--background);
+  --color-surface: var(--card);
+  --color-text: var(--foreground);
+  --color-secondary: var(--muted-foreground);
+  --color-accent: var(--brand);
+  --color-accent-hover: #ff7a4a;
+  --color-accent-soft: color-mix(in oklab, var(--brand) 18%, transparent);
+  --color-accent-bg: color-mix(in oklab, var(--brand) 10%, transparent);
+  --color-accent-glow: color-mix(in oklab, var(--brand) 22%, transparent);
+  --color-border: var(--border);
+  --color-dark: var(--primary);
+  --color-dark-soft: color-mix(in oklab, var(--primary) 82%, var(--background));
+  --nav-bg: rgba(10, 10, 10, 0.82);
+  --nav-cta-text: var(--primary-foreground);
+
+  /* Typography */
+  --font-display: 'Noto Serif SC', 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'Inter', 'Noto Sans SC', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Layout + motion */
+  --nav-height: 64px;
+  --nav-height-mobile: 56px;
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+  --transition-slow: 400ms ease;
+  --transition-spring: 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Radius scale (driven by --radius) */
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.65);
+  --shadow-card: 0 1px 4px rgba(0, 0, 0, 0.45);
+  --shadow-card-hover: 0 18px 38px rgba(0, 0, 0, 0.6);
+  --shadow: var(--shadow-md);
+}
+
+/* Base surfaces follow the tokens directly, so both themes paint correctly. */
+:root[data-theme='editorial'] body,
+:root[data-theme='studio'] body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme='editorial'] body,
+  :root[data-theme='studio'] body {
+    transition: none;
+  }
+}

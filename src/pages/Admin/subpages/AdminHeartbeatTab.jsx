@@ -129,7 +129,7 @@ export default function AdminHeartbeatTab() {
               <span>排队中: <strong>{(stats?.overview?.queued ?? 0) + (stats?.overview?.running ?? 0)}</strong></span>
             </div>
             <div className="admin-overview__sub-card">
-              <span>渠道覆盖: <strong>{stats?.coverage?.active ?? 0}/{stats?.coverage?.expected ?? 0}</strong> ({stats?.coverage?.activeRate ?? 0}%)</span>
+              <span>服务覆盖: <strong>{stats?.coverage?.active ?? 0}/{stats?.coverage?.expected ?? 0}</strong> ({stats?.coverage?.activeRate ?? 0}%)</span>
             </div>
             <div className="admin-overview__sub-card admin-overview__sub-card--warn">
               <span>告警: <strong>{stats?.alertSummary?.critical ?? 0}</strong> 严重 / <strong>{stats?.alertSummary?.warning ?? 0}</strong> 一般</span>
@@ -140,15 +140,14 @@ export default function AdminHeartbeatTab() {
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>Channel</th><th>告警</th><th>总计</th><th>成功</th><th>失败</th><th>成功率</th><th>平均延迟</th><th>P50</th><th>P90</th>
+                  <th>告警</th><th>总计</th><th>成功</th><th>失败</th><th>成功率</th><th>平均延迟</th><th>P50</th><th>P90</th>
                 </tr>
               </thead>
               <tbody>
                 {(stats?.channels || []).length === 0 ? (
-                  <tr><td colSpan={9} className="admin-table__empty">暂无数据</td></tr>
-                ) : stats?.channels.map((row) => (
-                  <tr key={row.channel}>
-                    <td><span className="admin-badge">{row.channel}</span></td>
+                  <tr><td colSpan={8} className="admin-table__empty">暂无数据</td></tr>
+                ) : stats?.channels.map((row, index) => (
+                  <tr key={`${row.channel}-${index}`}>
                     <td>
                       <span className="admin-badge" style={{
                         background: row.alertLevel === 'critical' ? '#fef2f2' : row.alertLevel === 'warning' ? '#fffbeb' : '#f0fdf4',
@@ -195,16 +194,15 @@ export default function AdminHeartbeatTab() {
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>失败任务</th><th>渠道</th><th>错误</th><th>时间</th>
+                  <th>失败任务</th><th>错误</th><th>时间</th>
                 </tr>
               </thead>
               <tbody>
                 {(stats?.recentErrors || []).length === 0 ? (
-                  <tr><td colSpan={4} className="admin-table__empty">暂无失败记录</td></tr>
+                  <tr><td colSpan={3} className="admin-table__empty">暂无失败记录</td></tr>
                 ) : (stats?.recentErrors || []).map((row) => (
                   <tr key={row.id}>
                     <td className="admin-table__cell--secondary">{row.id.slice(0, 12)}…</td>
-                    <td><span className="admin-badge">{row.channel}</span></td>
                     <td title={row.lastError}>{String(row.lastError || '').slice(0, 120) || '—'}</td>
                     <td className="admin-table__cell--secondary">{formatTimeAgo(row.updatedAt)}</td>
                   </tr>

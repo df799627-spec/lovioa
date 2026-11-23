@@ -1,14 +1,40 @@
+import '../env.js';
 import Database from 'better-sqlite3';
 import { existsSync, readFileSync, mkdirSync, writeFileSync, unlinkSync } from 'fs';
-import { join, dirname } from 'path';
+import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { createHash, randomUUID } from 'crypto';
 import { resolveImageUrl, isStorageConfigured } from '../services/cloudStorage.js';
+import {
+  inferCategoryAndTags,
+  normalizeImageFingerprint,
+  normalizePromptFingerprint,
+} from '../services/promptTaxonomy.js';
+import { normalizeGenerationCategory } from '../services/categoryPromptBlueprints.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DB_FILE = join(__dirname, '../data/lovioa.db');
+const DB_FILE = process.env.PROMPTFOLIO_DB_FILE
+  ? resolve(process.env.PROMPTFOLIO_DB_FILE)
+  : join(__dirname, '../data/lovioa.db');
 const LEGACY_JSON = join(__dirname, '../data/prompts.json');
 const GENERATED_UPLOADS_DIR = join(__dirname, '../uploads/generated');
+
+export const CREDITS_PER_IMAGE = 5;
+export const MONTHLY_CARRYOVER_RATE = 0.3;
+const CREDIT_UNIT_VERSION = 2;
+const BILLING_TIME_ZONE = 'Asia/Shanghai';
+const WORKSPACE_MAX_CONVERSATIONS = 200;
+const WORKSPACE_MAX_MESSAGES = 5000;
+const WORKSPACE_MAX_MESSAGE_TEXT = 50000;
+const WORKSPACE_MAX_TITLE_LENGTH = 500;
+// 对话内工作区资产（分镜/参考资产/图片等）快照大小上限。
+const WORKSPACE_MAX_SNAPSHOT_LENGTH = 20000000;
+const WORKSPACE_MAX_HIDDEN_ITEMS = 50000;
+const WORKSPACE_MAX_HIDDEN_ITEM_LENGTH = 10000;
+const WORKSPACE_MAX_SETTINGS_LENGTH = 200000;
+const WORKSPACE_MAX_ASSETS = 10000;
+const WORKSPACE_MAX_ASSET_URL_LENGTH = 20000;
+const WORKSPACE_MAX_ASSET_METADATA_LENGTH = 200000;
 
 export const db = new Database(DB_FILE);
 db.pragma('journal_mode = WAL');
@@ -18,11 +44,137 @@ db.pragma('busy_timeout = 15000');
 const S4_ENDPOINT = String(process.env.S4_ENDPOINT || '').trim().replace(/\/+$/, '');
 const S4_BUCKET_NAME = String(process.env.S4_BUCKET_NAME || '').trim();
 const S4_PUBLIC_DOMAIN = String(process.env.S4_PUBLIC_DOMAIN || '').trim().replace(/\/+$/, '');
+const R2_PUBLIC_DOMAIN = String(process.env.R2_PUBLIC_DOMAIN || '').trim().replace(/\/+$/, '');
+const R2_ACCOUNT_ID = String(process.env.R2_ACCOUNT_ID || '').trim();
+const R2_BUCKET_NAME = String(process.env.R2_BUCKET_NAME || '').trim();
 const S3_VHOST_RE = /^https?:\/\/([^.]+)\.s3\.([^/]+)\/(.+)$/i;
 const LEGACY_BLOCKED_IMAGE_HOSTS = String(process.env.LEGACY_BLOCKED_IMAGE_HOSTS || '')
   .split(',')
   .map((host) => host.trim().toLowerCase())
   .filter(Boolean);
+const DEFAULT_BLOCKED_IMAGE_HOSTS = [
+  'rsxermu666.cn',
+  'img.rsxermu666.cn',
+  'crantai.com',
+  'image.crantai.com',
+  'code2alita.com',
+  'zhouyang168.top',
+  'tokenx24.com',
+  'd1api.xin',
+];
+const DEFAULT_BLOCKED_MEDIA_HOSTS = [
+  'fanke2026.xyz',
+  'ai.fanke2026.xyz',
+  'yioapp.top',
+  'api.heziai.cc',
+  'runlive.top',
+  'feituokuajing.oss-cn-hongkong.aliyuncs.com',
+  ...DEFAULT_BLOCKED_IMAGE_HOSTS,
+];
+
+const PUBLIC_INTERNAL_FIELD_NAMES = new Set([
+  'provider',
+  'providername',
+  'providermodel',
+  'providerdecision',
+  'sourcechannel',
+  'source_channel',
+  'preferredchannel',
+  'preferred_channel',
+  'channel',
+  'channelplan',
+  'baseurl',
+  'base_url',
+  'baseurls',
+  'base_urls',
+  'endpoint',
+  'apiurl',
+  'api_url',
+  'raw',
+  'rawjson',
+  'raw_json',
+  'rawresponse',
+  'raw_response',
+  'request',
+  'response',
+  'candidate',
+  'candidates',
+  'sourceurl',
+  'source_url',
+  'resulturl',
+  'result_url',
+  'fileurl',
+  'file_url',
+]);
+const PUBLIC_MEDIA_FIELD_PATTERN = /(?:url|_url)$/i;
+const INTERNAL_PROVIDER_TEXT_PATTERN = /\b(?:foke|fanke2026|yio|heziai|runlive|legacy|code2alita|crantai|rsxermu666|feituokuajing|zhouyang168|tokenx24|d1api)\b/gi;
+
+function isAllowedPublicStorageUrl(raw) {
+  try {
+    const hostname = new URL(String(raw || '')).hostname.toLowerCase();
+    const configuredHosts = [
+      S4_ENDPOINT,
+      S4_PUBLIC_DOMAIN,
+      R2_PUBLIC_DOMAIN,
+      R2_ACCOUNT_ID && R2_BUCKET_NAME ? `${R2_BUCKET_NAME}.${R2_ACCOUNT_ID}.r2.dev` : '',
+    ]
+      .map(value => {
+        try { return new URL(value.includes('://') ? value : `https://${value}`).hostname.toLowerCase(); } catch { return ''; }
+      })
+      .filter(Boolean);
+    return configuredHosts.some(host => hostname === host || hostname.endsWith(`.${host}`));
+  } catch {
+    return false;
+  }
+}
+
+export function sanitizePublicText(value) {
+  return String(value || '')
+    .replace(/https?:\/\/[^\s"'<>]+/gi, '生成服务')
+    .replace(INTERNAL_PROVIDER_TEXT_PATTERN, '生成服务')
+    .replace(/视频渠道|视频供应商|供应商/g, '生成服务');
+}
+
+export function sanitizePublicMetadata(value, mediaType = 'image', key = '') {
+  if (Array.isArray(value)) {
+    return value.map(item => sanitizePublicMetadata(item, mediaType, key));
+  }
+  if (!value || typeof value !== 'object') {
+    if (typeof value === 'string') {
+      const normalizedKey = String(key || '').toLowerCase();
+      if (normalizedKey === 'src' || normalizedKey === 'url' || PUBLIC_MEDIA_FIELD_PATTERN.test(normalizedKey)) {
+        return normalizePublicMediaUrl(value, mediaType);
+      }
+      return sanitizePublicText(value);
+    }
+    return value;
+  }
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([entryKey]) => !PUBLIC_INTERNAL_FIELD_NAMES.has(String(entryKey).toLowerCase()))
+      .map(([entryKey, entryValue]) => {
+        const normalizedKey = String(entryKey || '').toLowerCase();
+        const nextType = normalizedKey === 'videos'
+          || normalizedKey === 'video'
+          || normalizedKey.includes('video')
+          ? 'video'
+          : normalizedKey === 'images' || normalizedKey === 'image'
+            ? 'image'
+            : mediaType;
+        return [
+          entryKey,
+          sanitizePublicMetadata(entryValue, nextType, entryKey),
+        ];
+      }),
+  );
+}
+
+const PUBLIC_MODEL_PATTERN = /^(?:gpt-image-(?:1|2|2\.5-(?:flare|sunburst))|(?:image-)?gemini-3(?:\.1)?-(?:flash-image|pro-image)|video_(?:h3|seedance_2(?:_fast|_5)?|wan_3)|minimax_h3(?:_v2|_multi_ref)?)$/i;
+
+export function normalizePublicModelName(raw) {
+  const model = String(raw || '').trim();
+  return PUBLIC_MODEL_PATTERN.test(model) ? model : '';
+}
 
 function tableColumns(table) {
   const rows = db.prepare(`PRAGMA table_info(${table})`).all();
@@ -90,6 +242,8 @@ function migrate() {
       user_id TEXT,
       category TEXT NOT NULL DEFAULT 'Abstract',
       job_id TEXT,
+      reference_asset_id TEXT NOT NULL DEFAULT '',
+      storyboard_shot_id TEXT NOT NULL DEFAULT '',
       moderation_status TEXT NOT NULL DEFAULT 'pending',
       created_at TEXT NOT NULL
     );
@@ -106,6 +260,8 @@ function migrate() {
       negative_prompt TEXT NOT NULL DEFAULT '',
       reference_image_url TEXT,
       edit_strength REAL,
+      dedup_key TEXT NOT NULL DEFAULT '',
+      category TEXT NOT NULL DEFAULT '',
       status TEXT NOT NULL DEFAULT 'queued',
       attempt_count INTEGER NOT NULL DEFAULT 0,
       max_attempts INTEGER NOT NULL DEFAULT 3,
@@ -145,6 +301,51 @@ function migrate() {
       gen_job_id TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS workspace_conversations (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      title TEXT NOT NULL DEFAULT '新对话',
+      messages_json TEXT NOT NULL DEFAULT '[]',
+      workspace_json TEXT NOT NULL DEFAULT '{}',
+      version INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS workspace_assets (
+      id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      conversation_id TEXT NOT NULL,
+      asset_type TEXT NOT NULL,
+      title TEXT NOT NULL DEFAULT '',
+      source_url TEXT NOT NULL,
+      metadata_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (user_id, conversation_id, id)
+    );
+
+    CREATE TABLE IF NOT EXISTS prompt_user_preferences (
+      user_id TEXT NOT NULL,
+      prompt_id TEXT NOT NULL,
+      liked INTEGER NOT NULL DEFAULT 0,
+      saved INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (user_id, prompt_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS workspace_state (
+      user_id TEXT PRIMARY KEY,
+      hidden_image_keys_json TEXT NOT NULL DEFAULT '[]',
+      hidden_image_ids_json TEXT NOT NULL DEFAULT '[]',
+      settings_json TEXT NOT NULL DEFAULT '{}',
+      active_conversation_id TEXT NOT NULL DEFAULT '',
+      version INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_prompts_created_at ON prompts(created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_prompts_category ON prompts(category);
     CREATE INDEX IF NOT EXISTS idx_prompts_likes ON prompts(likes DESC);
@@ -155,12 +356,24 @@ function migrate() {
     CREATE INDEX IF NOT EXISTS idx_gen_jobs_user ON gen_jobs(user_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_generated_images_created_at ON generated_images(created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_generated_images_category ON generated_images(category);
+    CREATE INDEX IF NOT EXISTS idx_workspace_conversations_user_updated
+      ON workspace_conversations(user_id, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_workspace_assets_user_conversation
+      ON workspace_assets(user_id, conversation_id, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_prompt_user_preferences_prompt
+      ON prompt_user_preferences(prompt_id);
+    CREATE INDEX IF NOT EXISTS idx_prompt_user_preferences_user_saved
+      ON prompt_user_preferences(user_id, saved, prompt_id);
+    CREATE INDEX IF NOT EXISTS idx_prompt_user_preferences_user_liked
+      ON prompt_user_preferences(user_id, liked, prompt_id);
   `);
 
   ensureColumn('prompts', 'author_user_id', 'author_user_id TEXT');
   ensureColumn('gen_history', 'mode', "mode TEXT NOT NULL DEFAULT 'text'");
   ensureColumn('gen_history', 'user_id', 'user_id TEXT');
   ensureColumn('gen_history', 'job_id', 'job_id TEXT');
+  ensureColumn('gen_history', 'reference_asset_id', "reference_asset_id TEXT NOT NULL DEFAULT ''");
+  ensureColumn('gen_history', 'storyboard_shot_id', "storyboard_shot_id TEXT NOT NULL DEFAULT ''");
   ensureColumn('gen_history', 'category', "category TEXT NOT NULL DEFAULT 'Abstract'");
   ensureColumn('gen_history', 'moderation_status', "moderation_status TEXT NOT NULL DEFAULT 'pending'");
   ensureColumn('generated_images', 'source_prompt', "source_prompt TEXT NOT NULL DEFAULT ''");
@@ -182,6 +395,8 @@ function migrate() {
   ensureColumn('gen_jobs', 'generation_options_json', "generation_options_json TEXT NOT NULL DEFAULT '{}'");
   ensureColumn('gen_jobs', 'reference_image_url', 'reference_image_url TEXT');
   ensureColumn('gen_jobs', 'edit_strength', 'edit_strength REAL');
+  ensureColumn('gen_jobs', 'dedup_key', "dedup_key TEXT NOT NULL DEFAULT ''");
+  ensureColumn('gen_jobs', 'category', "category TEXT NOT NULL DEFAULT ''");
   ensureColumn('gen_jobs', 'status', "status TEXT NOT NULL DEFAULT 'queued'");
   ensureColumn('gen_jobs', 'attempt_count', 'attempt_count INTEGER NOT NULL DEFAULT 0');
   ensureColumn('gen_jobs', 'max_attempts', 'max_attempts INTEGER NOT NULL DEFAULT 3');
@@ -201,10 +416,17 @@ function migrate() {
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_gen_jobs_heartbeat_created ON gen_jobs(is_heartbeat, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_gen_jobs_provider_created ON gen_jobs(provider_name, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_gen_jobs_dedup_key ON gen_jobs(dedup_key, status, created_at DESC);
   `);
   ensureColumn('gen_jobs', 'started_at', 'started_at TEXT');
   ensureColumn('gen_jobs', 'finished_at', 'finished_at TEXT');
   ensureColumn('gen_jobs', 'publish_to_prompts', 'publish_to_prompts INTEGER NOT NULL DEFAULT 1');
+  ensureColumn('prompts', 'prompt_zh', "prompt_zh TEXT NOT NULL DEFAULT ''");
+  ensureColumn('gen_history', 'prompt_zh', "prompt_zh TEXT NOT NULL DEFAULT ''");
+  ensureColumn('gen_history', 'tags_json', "tags_json TEXT NOT NULL DEFAULT '[]'");
+  ensureColumn('gen_jobs', 'prompt_zh', "prompt_zh TEXT NOT NULL DEFAULT ''");
+  ensureColumn('gen_jobs', 'tags_json', "tags_json TEXT NOT NULL DEFAULT '[]'");
+  ensureColumn('generated_images', 'prompt_zh', "prompt_zh TEXT NOT NULL DEFAULT ''");
   db.exec(`
     CREATE TABLE IF NOT EXISTS content_moderation_checks (
       id TEXT PRIMARY KEY,
@@ -289,6 +511,7 @@ function migrate() {
     CREATE INDEX IF NOT EXISTS idx_editor_items_step2 ON editor_items(step2_job_id);
     CREATE INDEX IF NOT EXISTS idx_editor_items_batch ON editor_items(batch_id, created_at DESC);
   `);
+  ensureColumn('editor_items', 'prompt_zh', "prompt_zh TEXT NOT NULL DEFAULT ''");
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS heartbeat_runs (
@@ -486,6 +709,92 @@ function migrate() {
 
 function nowIso() { return new Date().toISOString(); }
 
+function getBillingMonthKey(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: BILLING_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+  }).formatToParts(date).reduce((result, part) => {
+    if (part.type !== 'literal') result[part.type] = part.value;
+    return result;
+  }, {});
+  return `${parts.year}-${parts.month}`;
+}
+
+function nextBillingMonth(monthKey) {
+  const [year, month] = String(monthKey || '').split('-').map(Number);
+  if (!Number.isInteger(year) || !Number.isInteger(month)) return getBillingMonthKey();
+  const next = new Date(Date.UTC(year, month, 1));
+  return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+function migrateLegacyCreditBalances() {
+  const legacyRows = db.prepare(`
+    SELECT user_id, free_credits, paid_credits, monthly_credit_quota, credit_period
+    FROM user_balance
+    WHERE credits_unit_version < ?
+  `).all(CREDIT_UNIT_VERSION);
+  if (legacyRows.length === 0) return;
+
+  const currentPeriod = getBillingMonthKey();
+  const update = db.prepare(`
+    UPDATE user_balance
+    SET free_credits = ?,
+        paid_credits = ?,
+        monthly_credit_quota = ?,
+        credit_period = ?,
+        credits_unit_version = ?,
+        updated_at = ?
+    WHERE user_id = ?
+  `);
+  const migrate = db.transaction((rows) => {
+    for (const row of rows) {
+      const freeCredits = Math.max(0, Number(row.free_credits) || 0) * CREDITS_PER_IMAGE;
+      const paidCredits = Math.max(0, Number(row.paid_credits) || 0) * CREDITS_PER_IMAGE;
+      const existingQuota = Math.max(0, Number(row.monthly_credit_quota) || 0);
+      const monthlyQuota = Math.max(
+        freeCredits + paidCredits,
+        existingQuota * CREDITS_PER_IMAGE,
+      );
+      update.run(
+        freeCredits,
+        paidCredits,
+        monthlyQuota,
+        String(row.credit_period || '').trim() || currentPeriod,
+        CREDIT_UNIT_VERSION,
+        nowIso(),
+        row.user_id,
+      );
+    }
+  });
+  migrate(legacyRows);
+}
+
+function migrateLegacyRedeemCards() {
+  const legacyCards = db.prepare(`
+    SELECT id, credits
+    FROM redeem_cards
+    WHERE credits_unit_version < ?
+  `).all(CREDIT_UNIT_VERSION);
+  if (legacyCards.length === 0) return;
+
+  const update = db.prepare(`
+    UPDATE redeem_cards
+    SET credits = ?, credits_unit_version = ?
+    WHERE id = ?
+  `);
+  const migrate = db.transaction((cards) => {
+    for (const card of cards) {
+      update.run(
+        Math.max(0, Number(card.credits) || 0) * CREDITS_PER_IMAGE,
+        CREDIT_UNIT_VERSION,
+        card.id,
+      );
+    }
+  });
+  migrate(legacyCards);
+}
+
 function normalizePublicImageUrl(raw) {
   const url = String(raw || '').trim();
   if (!url) return '';
@@ -516,10 +825,11 @@ function normalizePublicImageUrl(raw) {
     }
   }
 
-  if (LEGACY_BLOCKED_IMAGE_HOSTS.length > 0) {
+  const blockedHosts = [...new Set([...LEGACY_BLOCKED_IMAGE_HOSTS, ...DEFAULT_BLOCKED_IMAGE_HOSTS])];
+  if (blockedHosts.length > 0) {
     try {
       const hostname = new URL(url).hostname.toLowerCase();
-      if (LEGACY_BLOCKED_IMAGE_HOSTS.some((host) => hostname === host || hostname.endsWith(`.${host}`))) {
+      if (blockedHosts.some((host) => hostname === host || hostname.endsWith(`.${host}`))) {
         return '/image-placeholder.svg';
       }
     } catch {
@@ -527,7 +837,33 @@ function normalizePublicImageUrl(raw) {
     }
   }
 
+  if (/^https?:\/\//i.test(url) && !isAllowedPublicStorageUrl(url)) {
+    return '/image-placeholder.svg';
+  }
+
   return url;
+}
+
+export function normalizePublicMediaUrl(raw, type = 'image') {
+  const url = String(raw || '').trim();
+  if (!url) return '';
+  if (url.startsWith('/')) return url;
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    const blockedHosts = [...new Set([
+      ...LEGACY_BLOCKED_IMAGE_HOSTS,
+      ...DEFAULT_BLOCKED_MEDIA_HOSTS,
+    ])];
+    if (blockedHosts.some((host) => hostname === host || hostname.endsWith(`.${host}`))) {
+      return type === 'video' ? '' : '/image-placeholder.svg';
+    }
+    if (!isAllowedPublicStorageUrl(url)) {
+      return type === 'video' ? '' : '/image-placeholder.svg';
+    }
+  } catch {
+    return type === 'video' ? '' : '/image-placeholder.svg';
+  }
+  return type === 'video' ? url : normalizePublicImageUrl(url);
 }
 
 function extFromMime(mime = '') {
@@ -644,86 +980,25 @@ function hydratePromptTagsFromJson() {
   }
 }
 
-const TAG_RULES = [
-  { tag: 'Portrait', category: 'Portrait', re: /\bportrait|headshot|selfie|beauty|face|skin|close-?up|人物|人像|头像|写真|肖像|特写|妆容/i },
-  { tag: 'Fashion', category: 'Fashion', re: /\bfashion|lookbook|couture|runway|style|outfit|styling|wardrobe|服装|时尚|穿搭|秀场/i },
-  { tag: 'Editorial', category: 'Editorial', re: /\beditorial|magazine|cover|spread|vogue|harper|杂志|大片|封面|画册/i },
-  { tag: 'Landscape', category: 'Landscape', re: /\blandscape|mountain|forest|sea|ocean|sunset|sunrise|nature|valley|风景|山|海|森林|日落|日出|自然风光/i },
-  { tag: 'Architecture', category: 'Architecture', re: /\barchitecture|interior|building|brutalist|house|room|facade|建筑|室内|空间|家居|建筑外观/i },
-  { tag: 'Gaming', category: 'Gaming', re: /\bgame|gaming|rpg|character|sprite|ui asset|icon set|metroidvania|concept art|boss|像素|游戏|角色|立绘|原画/i },
-  { tag: 'E-commerce', category: 'Ecommerce', re: /\be-?commerce|product page|product shot|packshot|shop|listing|catalog|amazon|淘宝|电商|商品|产品图|主图|详情页/i },
-  { tag: 'UI Design', category: 'UIDesign', re: /\bui|ux|app interface|dashboard|wireframe|mockup|design system|界面|设计稿|仪表盘/i },
-  { tag: 'Branding', category: 'Brand', re: /\bbrand|branding|identity|logo|campaign|slogan|品牌|标识|品牌视觉/i },
-  { tag: 'Illustration', category: 'Illustration', re: /\billustration|drawing|sketch|comic|manga|watercolor|插画|绘图|手绘|水彩/i },
-  { tag: 'Social Media', category: 'SocialMedia', re: /\bsocial media|instagram|tiktok|xiaohongshu|reels|thumbnail|小红书|抖音|社媒|封面图/i },
-  { tag: 'Food', category: 'Food', re: /\bfood|beverage|dessert|drink|coffee|restaurant|plating|美食|饮品|甜点|摆盘/i },
-  { tag: 'Travel', category: 'Travel', re: /\btravel|destination|tourism|vacation|trip|itinerary|旅行|旅拍|度假|景点/i },
-  { tag: 'Street', category: 'Street', re: /\bstreet|urban|city|neon|alley|crosswalk|街头|城市|夜景|霓虹|巷子/i },
-  { tag: 'Abstract', category: 'Abstract', re: /\babstract|surreal|geometric|experimental|glitch|texture|抽象|超现实|几何|纹理/i },
-  { tag: 'Avatar', category: 'Avatar', re: /\bavatar|profile picture|character icon|pfp|人物头像|头像/i },
-];
-
-function inferCategoryAndTags(promptText = '') {
-  const text = String(promptText || '');
-  const tags = [];
-  const categoryScores = new Map();
-
-  for (const rule of TAG_RULES) {
-    if (rule.re.test(text)) {
-      if (!tags.includes(rule.tag)) tags.push(rule.tag);
-      categoryScores.set(rule.category, (categoryScores.get(rule.category) || 0) + 1);
-    }
-  }
-
-  let category = 'Generated';
-  let best = 0;
-  for (const [cat, score] of categoryScores.entries()) {
-    if (score > best) {
-      best = score;
-      category = cat;
-    }
-  }
-
-  if (tags.length === 0) tags.push('Generated');
-  return { category, tags: tags.slice(0, 8) };
-}
-
 function normalizeCategoryFromContent({ promptText = '', tags = [], manualCategory = '' } = {}) {
+  const explicit = normalizeGenerationCategory(manualCategory);
+  if (explicit) return explicit;
   const mergedText = `${String(promptText || '')} ${(Array.isArray(tags) ? tags.join(' ') : '')}`.trim();
   const inferred = inferCategoryAndTags(mergedText);
-  if (inferred.category && inferred.category !== 'Generated') {
-    return inferred.category;
-  }
-  return manualCategory || 'Generated';
+  return inferred.category || 'Generated';
 }
 
 function recategorizePromptsFromContent() {
-  try {
-    const rows = db.prepare('SELECT id, prompt, tags_json, category FROM prompts').all();
-    if (!rows.length) return;
-    const update = db.prepare('UPDATE prompts SET category = ? WHERE id = ?');
-    const tx = db.transaction((items) => {
-      for (const row of items) {
-        const tags = safeParseTags(row.tags_json || '[]');
-        const category = normalizeCategoryFromContent({
-          promptText: row.prompt || '',
-          tags,
-          manualCategory: row.category || 'Generated',
-        });
-        if (category !== row.category) update.run(category, row.id);
-      }
-    });
-    tx(rows);
-  } catch (e) {
-    if (process.env.NODE_ENV !== 'production') console.error('[migrate] recategorizePromptsFromContent failed:', e);
-  }
+  // Categories are selected before generation. Historical repair is explicit
+  // and must not silently relabel records on every server boot.
 }
 
 export function rowToPrompt(row) {
   return {
     id: row.id,
     imageUrl: normalizePublicImageUrl(row.image_url),
-    prompt: row.prompt,
+    prompt: sanitizePublicText(row.prompt),
+    promptZh: sanitizePublicText(row.prompt_zh || ''),
     author: {
       name: row.author_name,
       avatar: row.author_avatar,
@@ -733,8 +1008,8 @@ export function rowToPrompt(row) {
     tags: JSON.parse(row.tags_json || '[]'),
     category: row.category,
     likes: row.likes,
-    liked: !!row.liked,
-    saved: !!row.saved,
+    liked: row.user_liked !== undefined ? !!row.user_liked : !!row.liked,
+    saved: row.user_saved !== undefined ? !!row.user_saved : !!row.saved,
     createdAt: row.created_at,
   };
 }
@@ -743,11 +1018,16 @@ function rowToHistory(row) {
   return {
     id: row.id,
     imageUrl: normalizePublicImageUrl(row.image_url),
-    prompt: row.prompt,
-    model: row.model,
+    prompt: sanitizePublicText(row.prompt),
+    promptZh: sanitizePublicText(row.prompt_zh || ''),
+    tags: safeParseTags(row.tags_json || '[]'),
+    model: normalizePublicModelName(row.model),
     mode: row.mode,
     userId: row.user_id,
-    category: row.category || 'Abstract',
+    referenceAssetId: row.reference_asset_id || '',
+    storyboardShotId: row.storyboard_shot_id || '',
+    conversationId: row.conversation_id || '',
+    category: row.category || 'Generated',
     moderationStatus: row.moderation_status || 'pending',
     createdAt: row.created_at,
   };
@@ -765,6 +1045,7 @@ function rowToGenJob(row) {
     quality: row.quality,
     generationOptions,
     prompt: row.prompt,
+    promptZh: row.prompt_zh || '',
     negativePrompt: row.negative_prompt,
     referenceImageUrl: row.reference_image_url,
     publishToPrompts: !!row.publish_to_prompts,
@@ -785,6 +1066,8 @@ function rowToGenJob(row) {
     heartbeatCategory: row.heartbeat_category || '',
     preferredChannel: row.preferred_channel || '',
     priority: Number(row.priority || 0),
+    dedupKey: row.dedup_key || '',
+    category: normalizeGenerationCategory(row.category) || '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     startedAt: row.started_at,
@@ -806,7 +1089,7 @@ function rowToHeartbeatRun(row) {
     succeededJobs: Number(row.succeeded_jobs || 0),
     failedJobs: Number(row.failed_jobs || 0),
     generatedCategories: Array.isArray(generatedCategories) ? generatedCategories : [],
-    details,
+    details: sanitizePublicMetadata(details),
     startedAt: row.started_at,
     finishedAt: row.finished_at,
     createdAt: row.created_at,
@@ -887,10 +1170,15 @@ migrate();
   ensureColumn('page_events', 'region', "region TEXT NOT NULL DEFAULT ''");
   ensureColumn('page_events', 'city', "city TEXT NOT NULL DEFAULT ''");
 ensureColumn('users', 'is_admin', 'is_admin INTEGER NOT NULL DEFAULT 0');
+ensureColumn('workspace_conversations', 'workspace_json', "workspace_json TEXT NOT NULL DEFAULT '{}'");
+ensureColumn('gen_history', 'conversation_id', "conversation_id TEXT NOT NULL DEFAULT ''");
 ensureColumn('users', 'onboarding_source', 'onboarding_source TEXT NOT NULL DEFAULT \'[]\'');
 ensureColumn('users', 'onboarding_role', 'onboarding_role TEXT NOT NULL DEFAULT \'\'');
 ensureColumn('users', 'onboarding_use_case', 'onboarding_use_case TEXT NOT NULL DEFAULT \'[]\'');
 ensureColumn('users', 'onboarding_completed_at', 'onboarding_completed_at TEXT NOT NULL DEFAULT \'\'');
+ensureColumn('users', 'domestic_plan', 'domestic_plan TEXT');
+ensureColumn('users', 'domestic_plan_redeemed_at', 'domestic_plan_redeemed_at TEXT');
+ensureColumn('users', 'domestic_redeem_card_id', 'domestic_redeem_card_id TEXT');
 ensureColumn('prompts', 'extra_data', 'extra_data TEXT NOT NULL DEFAULT \'{}\'');
 
 // ── Billing ────────────────────────────────────────────────────────────────────
@@ -918,9 +1206,52 @@ db.exec(`
     free_credits INTEGER NOT NULL DEFAULT 0,
     paid_credits INTEGER NOT NULL DEFAULT 0,
     lifetime_generations INTEGER NOT NULL DEFAULT 0,
+    monthly_credit_quota INTEGER NOT NULL DEFAULT 0,
+    credit_period TEXT NOT NULL DEFAULT '',
+    credits_unit_version INTEGER NOT NULL DEFAULT 2,
     updated_at TEXT NOT NULL
   );
 `);
+ensureColumn('user_balance', 'monthly_credit_quota', 'monthly_credit_quota INTEGER NOT NULL DEFAULT 0');
+ensureColumn('user_balance', 'credit_period', "credit_period TEXT NOT NULL DEFAULT ''");
+ensureColumn('user_balance', 'credits_unit_version', 'credits_unit_version INTEGER NOT NULL DEFAULT 1');
+migrateLegacyCreditBalances();
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS video_credit_charges (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    credits INTEGER NOT NULL,
+    free_credits INTEGER NOT NULL DEFAULT 0,
+    paid_credits INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'charged',
+    created_at TEXT NOT NULL,
+    refunded_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_video_credit_charges_user
+    ON video_credit_charges(user_id, created_at DESC);
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS redeem_cards (
+    id TEXT PRIMARY KEY,
+    code_hash TEXT NOT NULL UNIQUE,
+    code_last4 TEXT NOT NULL,
+    plan_id TEXT NOT NULL,
+    credits INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'available',
+    redeemed_by TEXT,
+    redeemed_at TEXT,
+    imported_at TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'domestic',
+    credits_unit_version INTEGER NOT NULL DEFAULT 2
+  );
+  CREATE INDEX IF NOT EXISTS idx_redeem_cards_status ON redeem_cards(status);
+  CREATE INDEX IF NOT EXISTS idx_redeem_cards_plan ON redeem_cards(plan_id);
+  CREATE INDEX IF NOT EXISTS idx_redeem_cards_redeemed_by ON redeem_cards(redeemed_by);
+`);
+ensureColumn('redeem_cards', 'credits_unit_version', 'credits_unit_version INTEGER NOT NULL DEFAULT 1');
+migrateLegacyRedeemCards();
 
 // Daily login rewards are keyed by the user's local calendar date.
 db.exec(`
@@ -969,11 +1300,21 @@ export function createUser({ id, username, email, passwordHash, avatar }) {
     INSERT INTO users (id, username, email, password_hash, avatar, created_at)
     VALUES (?, ?, ?, ?, ?, ?)
   `).run(id, username, email.toLowerCase(), passwordHash, avatar, nowIso());
-  // Give 6 free image credits on registration.
+  // Give 6 free image generations as points on registration.
   db.prepare(`
-    INSERT OR IGNORE INTO user_balance (user_id, free_credits, paid_credits, lifetime_generations, updated_at)
-    VALUES (?, 6, 0, 0, ?)
-  `).run(id, nowIso());
+    INSERT OR IGNORE INTO user_balance (
+      user_id, free_credits, paid_credits, lifetime_generations,
+      monthly_credit_quota, credit_period, credits_unit_version, updated_at
+    )
+    VALUES (?, ?, 0, 0, ?, ?, ?, ?)
+  `).run(
+    id,
+    CREDITS_PER_IMAGE * 6,
+    CREDITS_PER_IMAGE * 6,
+    getBillingMonthKey(),
+    CREDIT_UNIT_VERSION,
+    nowIso(),
+  );
   claimDailyLoginReward(id, { grant: false });
   return getUserById(id);
 }
@@ -1005,7 +1346,13 @@ export function saveOnboardingData(userId, { source = [], role = '', useCase = [
     UPDATE users
     SET onboarding_source = ?, onboarding_role = ?, onboarding_use_case = ?, onboarding_completed_at = ?
     WHERE id = ?
-  `).run(sourceJson, role || '', useCaseJson, completedAt || new Date().toISOString());
+  `).run(
+    sourceJson,
+    role || '',
+    useCaseJson,
+    completedAt || new Date().toISOString(),
+    userId,
+  );
   return getUserById(userId);
 }
 
@@ -1055,6 +1402,20 @@ export function consumePasswordResetToken(token) {
 }
 
 function rowToUser(row, extra = {}) {
+  let onboardingSource = [];
+  let onboardingUseCase = [];
+  try {
+    onboardingSource = JSON.parse(row.onboarding_source || '[]');
+    if (!Array.isArray(onboardingSource)) onboardingSource = [];
+  } catch {
+    onboardingSource = [];
+  }
+  try {
+    onboardingUseCase = JSON.parse(row.onboarding_use_case || '[]');
+    if (!Array.isArray(onboardingUseCase)) onboardingUseCase = [];
+  } catch {
+    onboardingUseCase = [];
+  }
   return {
     id: row.id,
     username: row.username,
@@ -1062,6 +1423,11 @@ function rowToUser(row, extra = {}) {
     avatar: row.avatar,
     passwordHash: row.password_hash,
     isAdmin: !!row.is_admin,
+    onboardingSource,
+    onboardingRole: row.onboarding_role || '',
+    onboardingUseCase,
+    onboardingCompletedAt: row.onboarding_completed_at || '',
+    hasCompletedOnboarding: Boolean(row.onboarding_completed_at),
     // Use pre-computed prompt_count from JOIN queries when available; otherwise compute.
     promptCount: (extra.promptCount !== undefined) ? extra.promptCount : (db.prepare('SELECT COUNT(1) AS c FROM prompts WHERE author_user_id = ?').get(row.id)?.c || 0),
     createdAt: row.created_at,
@@ -1069,51 +1435,66 @@ function rowToUser(row, extra = {}) {
 }
 
 // Prompts
-export function listPrompts({ category, search, sort, authorUserId, limit = 500, offset = 0 } = {}) {
+export function listPrompts({ category, search, sort, authorUserId, viewerUserId, limit = 500, offset = 0 } = {}) {
   const where = [];
-  const params = {};
+  const params = {
+    viewerUserId: String(viewerUserId || '').trim() || null,
+  };
   const normalizedLimit = Math.max(1, Math.min(500, Number(limit || 500)));
   const normalizedOffset = Math.max(0, Number(offset || 0));
 
   if (category && category !== 'Latest' && category !== 'Popular' && category !== 'Generated') {
-    where.push('category = @category');
+    where.push('p.category = @category');
     params.category = category;
   }
 
   if (search && String(search).trim()) {
-    where.push('(LOWER(prompt) LIKE @q OR LOWER(tags_json) LIKE @q OR LOWER(category) LIKE @q OR LOWER(author_name) LIKE @q)');
+    where.push('(LOWER(p.prompt) LIKE @q OR LOWER(p.prompt_zh) LIKE @q OR LOWER(p.tags_json) LIKE @q OR LOWER(p.category) LIKE @q OR LOWER(p.author_name) LIKE @q)');
     params.q = `%${String(search).toLowerCase()}%`;
   }
 
   if (authorUserId) {
-    where.push('author_user_id = @authorUserId');
+    where.push('p.author_user_id = @authorUserId');
     params.authorUserId = authorUserId;
   }
 
-  let orderBy = 'created_at DESC';
-  if (sort === 'popular' || category === 'Popular') orderBy = 'likes DESC, created_at DESC';
+  let orderBy = 'p.created_at DESC';
+  if (sort === 'popular' || category === 'Popular') orderBy = 'p.likes DESC, p.created_at DESC';
 
   const sql = `
     SELECT
-      id,
-      CASE WHEN image_url LIKE 'data:%' THEN '/image-placeholder.svg' ELSE image_url END AS image_url,
-      prompt, author_name, author_avatar, author_prompt_count, author_user_id,
-      tags_json, category, likes, liked, saved, created_at
-    FROM prompts
+      p.id,
+      CASE WHEN p.image_url LIKE 'data:%' THEN '/image-placeholder.svg' ELSE p.image_url END AS image_url,
+      p.prompt, p.author_name, p.author_avatar, p.author_prompt_count, p.author_user_id,
+      p.tags_json, p.category, p.likes, p.created_at, p.prompt_zh,
+      COALESCE(pref.liked, 0) AS user_liked,
+      COALESCE(pref.saved, 0) AS user_saved
+    FROM prompts p
+    LEFT JOIN prompt_user_preferences pref
+      ON pref.prompt_id = p.id AND pref.user_id = @viewerUserId
     ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
     ORDER BY ${orderBy}
     LIMIT @limit OFFSET @offset
   `;
-  params.limit = normalizedLimit;
+  params.limit = Math.min(2000, normalizedLimit * 4);
   params.offset = normalizedOffset;
   const rows = db.prepare(sql).all(params).map(rowToPrompt);
 
-  // Explore feed de-duplication by stable id only.
-  // Image URLs can be temporarily identical/empty while jobs are being persisted.
   if (!authorUserId) {
     const byId = new Map();
+    const byImage = new Set();
+    const byPrompt = new Set();
     for (const item of rows) {
-      if (!byId.has(item.id)) byId.set(item.id, item);
+      if (byId.has(item.id)) continue;
+      const isGenerated = String(item.id || '').startsWith('gen-');
+      const imageKey = isGenerated ? normalizeImageFingerprint(item.imageUrl) : '';
+      const promptKey = isGenerated ? normalizePromptFingerprint(item.prompt) : '';
+      if (imageKey && byImage.has(imageKey)) continue;
+      if (promptKey && byPrompt.has(promptKey)) continue;
+      byId.set(item.id, item);
+      if (imageKey) byImage.add(imageKey);
+      if (promptKey) byPrompt.add(promptKey);
+      if (byId.size >= normalizedLimit) break;
     }
     return [...byId.values()];
   }
@@ -1121,8 +1502,17 @@ export function listPrompts({ category, search, sort, authorUserId, limit = 500,
   return rows;
 }
 
-export function getPromptById(id) {
-  const row = db.prepare('SELECT * FROM prompts WHERE id = ?').get(id);
+export function getPromptById(id, viewerUserId = '') {
+  const row = db.prepare(`
+    SELECT
+      p.*,
+      COALESCE(pref.liked, 0) AS user_liked,
+      COALESCE(pref.saved, 0) AS user_saved
+    FROM prompts p
+    LEFT JOIN prompt_user_preferences pref
+      ON pref.prompt_id = p.id AND pref.user_id = ?
+    WHERE p.id = ?
+  `).get(String(viewerUserId || '').trim() || null, id);
   return row ? rowToPrompt(row) : null;
 }
 
@@ -1136,7 +1526,7 @@ export function getEditorShowcaseItems({ limit = 30 } = {}) {
   try {
     rows = db.prepare(`
       SELECT id, image_url, prompt, author_name, author_avatar, author_prompt_count,
-             tags_json, category, likes, liked, saved, created_at, author_user_id,
+      tags_json, category, likes, liked, saved, created_at, author_user_id, prompt_zh,
              extra_data
       FROM prompts
       WHERE extra_data LIKE '%originalImageUrl%'
@@ -1189,29 +1579,159 @@ export function createPrompt(newPrompt) {
     newPrompt.createdAt,
   );
   replacePromptTagRelations(newPrompt.id, normalizedTags, { source: 'rule', confidence: 1 });
-  return getPromptById(newPrompt.id);
+  return getPromptById(newPrompt.id, newPrompt.author?.userId);
 }
 
-export function toggleLike(id) {
-  const row = db.prepare('SELECT likes, liked FROM prompts WHERE id = ?').get(id);
-  if (!row) return null;
-  const liked = row.liked ? 0 : 1;
-  const likes = row.likes + (liked ? 1 : -1);
-  db.prepare('UPDATE prompts SET liked = ?, likes = ? WHERE id = ?').run(liked, likes, id);
-  return getPromptById(id);
+function normalizePromptPreferenceUserId(userId) {
+  const normalized = String(userId || '').trim();
+  if (!normalized) throw new Error('Authentication required');
+  return normalized;
 }
 
-export function toggleSave(id) {
-  const row = db.prepare('SELECT saved FROM prompts WHERE id = ?').get(id);
-  if (!row) return null;
-  const saved = row.saved ? 0 : 1;
-  db.prepare('UPDATE prompts SET saved = ? WHERE id = ?').run(saved, id);
-  return getPromptById(id);
+export function toggleLike(id, userId) {
+  const normalizedUserId = normalizePromptPreferenceUserId(userId);
+  const prompt = db.prepare('SELECT id, likes FROM prompts WHERE id = ?').get(id);
+  if (!prompt) return null;
+
+  const toggle = db.transaction(() => {
+    const current = db.prepare(`
+      SELECT liked, saved
+      FROM prompt_user_preferences
+      WHERE user_id = ? AND prompt_id = ?
+    `).get(normalizedUserId, id);
+    const liked = current?.liked ? 0 : 1;
+    const now = nowIso();
+
+    if (current) {
+      db.prepare(`
+        UPDATE prompt_user_preferences
+        SET liked = ?, updated_at = ?
+        WHERE user_id = ? AND prompt_id = ?
+      `).run(liked, now, normalizedUserId, id);
+    } else {
+      db.prepare(`
+        INSERT INTO prompt_user_preferences (
+          user_id, prompt_id, liked, saved, created_at, updated_at
+        ) VALUES (?, ?, ?, 0, ?, ?)
+      `).run(normalizedUserId, id, liked, now, now);
+    }
+    db.prepare(`
+      UPDATE prompts
+      SET likes = MAX(0, likes + ?)
+      WHERE id = ?
+    `).run(liked ? 1 : -1, id);
+  });
+  toggle();
+  return getPromptById(id, normalizedUserId);
+}
+
+export function toggleSave(id, userId) {
+  const normalizedUserId = normalizePromptPreferenceUserId(userId);
+  const prompt = db.prepare('SELECT id FROM prompts WHERE id = ?').get(id);
+  if (!prompt) return null;
+
+  const toggle = db.transaction(() => {
+    const current = db.prepare(`
+      SELECT liked, saved
+      FROM prompt_user_preferences
+      WHERE user_id = ? AND prompt_id = ?
+    `).get(normalizedUserId, id);
+    const saved = current?.saved ? 0 : 1;
+    const now = nowIso();
+
+    if (current) {
+      db.prepare(`
+        UPDATE prompt_user_preferences
+        SET saved = ?, updated_at = ?
+        WHERE user_id = ? AND prompt_id = ?
+      `).run(saved, now, normalizedUserId, id);
+    } else {
+      db.prepare(`
+        INSERT INTO prompt_user_preferences (
+          user_id, prompt_id, liked, saved, created_at, updated_at
+        ) VALUES (?, ?, 0, ?, ?, ?)
+      `).run(normalizedUserId, id, saved, now, now);
+    }
+  });
+  toggle();
+  return getPromptById(id, normalizedUserId);
+}
+
+export function getUserPromptPreferences(userId) {
+  const normalizedUserId = normalizePromptPreferenceUserId(userId);
+  const rows = db.prepare(`
+    SELECT prompt_id, liked, saved
+    FROM prompt_user_preferences
+    WHERE user_id = ? AND (liked = 1 OR saved = 1)
+  `).all(normalizedUserId);
+  return {
+    likedIds: rows.filter(row => row.liked === 1).map(row => row.prompt_id),
+    savedIds: rows.filter(row => row.saved === 1).map(row => row.prompt_id),
+  };
+}
+
+export function importUserPromptPreferences(userId, { likedIds = [], savedIds = [] } = {}) {
+  const normalizedUserId = normalizePromptPreferenceUserId(userId);
+  const liked = new Set(normalizePromptStringList(likedIds));
+  const saved = new Set(normalizePromptStringList(savedIds));
+  const promptIds = [...new Set([...liked, ...saved])];
+  if (promptIds.length === 0) return getUserPromptPreferences(normalizedUserId);
+
+  const validIds = new Set(
+    db.prepare(`
+      SELECT id
+      FROM prompts
+      WHERE id IN (${promptIds.map(() => '?').join(', ')})
+    `).all(...promptIds).map(row => row.id),
+  );
+  const now = nowIso();
+  const tx = db.transaction(() => {
+    const existing = db.prepare(`
+      SELECT prompt_id, liked, saved
+      FROM prompt_user_preferences
+      WHERE user_id = ? AND prompt_id IN (${promptIds.map(() => '?').join(', ')})
+    `).all(normalizedUserId, ...promptIds);
+    const existingById = new Map(existing.map(row => [row.prompt_id, row]));
+    const insert = db.prepare(`
+      INSERT INTO prompt_user_preferences (
+        user_id, prompt_id, liked, saved, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    const update = db.prepare(`
+      UPDATE prompt_user_preferences
+      SET liked = ?, saved = ?, updated_at = ?
+      WHERE user_id = ? AND prompt_id = ?
+    `);
+
+    for (const promptId of validIds) {
+      const current = existingById.get(promptId);
+      const nextLiked = current?.liked === 1 || liked.has(promptId) ? 1 : 0;
+      const nextSaved = current?.saved === 1 || saved.has(promptId) ? 1 : 0;
+      if (current) {
+        update.run(nextLiked, nextSaved, now, normalizedUserId, promptId);
+      } else {
+        insert.run(normalizedUserId, promptId, liked.has(promptId) ? 1 : 0, saved.has(promptId) ? 1 : 0, now, now);
+      }
+    }
+  });
+  tx();
+  return getUserPromptPreferences(normalizedUserId);
+}
+
+function normalizePromptStringList(value) {
+  return [...new Set(
+    (Array.isArray(value) ? value : [])
+      .map(item => String(item || '').trim())
+      .filter(Boolean),
+  )].slice(0, 5000);
 }
 
 export function deletePrompt(id) {
-  const res = db.prepare('DELETE FROM prompts WHERE id = ?').run(id);
-  return res.changes > 0;
+  const remove = db.transaction(() => {
+    db.prepare('DELETE FROM prompt_user_preferences WHERE prompt_id = ?').run(id);
+    return db.prepare('DELETE FROM prompts WHERE id = ?').run(id);
+  });
+  return remove().changes > 0;
 }
 
 export function listPromptRowsForTagging({ limit = 100, offset = 0, includeTagged = false, category = '' } = {}) {
@@ -1282,6 +1802,679 @@ export function getStats() {
   return { promptsShared: promptsCount, imagesGenerated, communitySize };
 }
 
+export class WorkspaceConversationConflictError extends Error {
+  constructor(current) {
+    super('Workspace conversation was updated elsewhere');
+    this.name = 'WorkspaceConversationConflictError';
+    this.code = 'WORKSPACE_CONVERSATION_CONFLICT';
+    this.current = current;
+  }
+}
+
+function normalizeWorkspaceMessage(message) {
+  if (!message || typeof message !== 'object') return null;
+  const role = message.role === 'assistant' ? 'assistant' : message.role === 'user' ? 'user' : '';
+  if (!role) return null;
+
+  const normalized = {
+    id: String(message.id || randomUUID()).slice(0, 160),
+    role,
+    text: sanitizePublicText(String(message.text || '').slice(0, WORKSPACE_MAX_MESSAGE_TEXT)),
+    time: sanitizePublicText(String(message.time || '').slice(0, 80)),
+  };
+  const status = String(message.status || '').trim();
+  if (['running', 'completed', 'failed'].includes(status)) normalized.status = status;
+
+  const agentLabel = sanitizePublicText(String(message.agentLabel || '').trim());
+  if (agentLabel) normalized.agentLabel = agentLabel.slice(0, 120);
+
+  if (Array.isArray(message.steps)) {
+    normalized.steps = message.steps
+      .slice(0, 32)
+      .map(step => ({
+        step: Number.isFinite(Number(step?.step)) ? Number(step.step) : 0,
+        tool: sanitizePublicText(String(step?.tool || '').slice(0, 120)),
+        status: sanitizePublicText(String(step?.status || '').slice(0, 40)),
+      }))
+      .filter(step => step.tool || step.status || step.step);
+  }
+
+  return normalized;
+}
+
+function normalizeWorkspaceMessages(messages) {
+  return (Array.isArray(messages) ? messages : [])
+    .slice(-WORKSPACE_MAX_MESSAGES)
+    .map(normalizeWorkspaceMessage)
+    .filter(Boolean);
+}
+
+function normalizeWorkspaceTitle(title) {
+  return String(title || '新对话').trim().slice(0, WORKSPACE_MAX_TITLE_LENGTH) || '新对话';
+}
+
+function normalizeWorkspaceId(id) {
+  const value = String(id || '').trim();
+  if (!value || value.length > 160 || !/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(value)) {
+    throw new Error('Invalid workspace conversation id');
+  }
+  return value;
+}
+
+function normalizeWorkspaceCreatedAt(value) {
+  const candidate = String(value || '').trim();
+  if (!candidate) return nowIso();
+  const parsed = new Date(candidate);
+  return Number.isNaN(parsed.getTime()) ? nowIso() : parsed.toISOString();
+}
+
+function normalizeWorkspaceSnapshot(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  let json;
+  try {
+    json = JSON.stringify(value);
+  } catch {
+    return {};
+  }
+  if (json.length > WORKSPACE_MAX_SNAPSHOT_LENGTH) {
+    // 超限时只保留分镜与参考资产；图片/视频会由 workspace_assets 表恢复。
+    const trimmed = {
+      shots: Array.isArray(value.shots) ? value.shots : value.storyboardShots,
+      referenceAssets: value.referenceAssets,
+    };
+    try {
+      if (JSON.stringify(trimmed).length > WORKSPACE_MAX_SNAPSHOT_LENGTH) return {};
+    } catch {
+      return {};
+    }
+    return trimmed;
+  }
+  return value;
+}
+
+function sanitizeWorkspaceSnapshotMedia(value, mediaType = 'image', key = '') {
+  if (Array.isArray(value)) {
+    return value.map(item => sanitizeWorkspaceSnapshotMedia(item, mediaType, key));
+  }
+  if (!value || typeof value !== 'object') {
+    if (typeof value === 'string') {
+      const normalizedKey = String(key || '').toLowerCase();
+      if (normalizedKey === 'src' || normalizedKey === 'url' || PUBLIC_MEDIA_FIELD_PATTERN.test(normalizedKey)) {
+        return normalizePublicMediaUrl(value, mediaType);
+      }
+      return sanitizePublicText(value);
+    }
+    return value;
+  }
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([entryKey]) => !PUBLIC_INTERNAL_FIELD_NAMES.has(String(entryKey).toLowerCase()))
+      .map(([entryKey, entryValue]) => {
+        const normalizedKey = String(entryKey || '').toLowerCase();
+        const nextType = normalizedKey === 'videos'
+          || normalizedKey === 'video'
+          || normalizedKey.includes('video')
+          ? 'video'
+          : normalizedKey === 'images' || normalizedKey === 'image'
+            ? 'image'
+            : mediaType;
+        return [
+          entryKey,
+          sanitizeWorkspaceSnapshotMedia(entryValue, nextType, entryKey),
+        ];
+      }),
+  );
+}
+
+function normalizeWorkspaceAssetType(value) {
+  const type = String(value || '').trim().toLowerCase();
+  return type === 'image' || type === 'video' ? type : '';
+}
+
+function normalizeWorkspaceAsset(asset, type, conversationId) {
+  if (!asset || typeof asset !== 'object' || Array.isArray(asset)) return null;
+  const assetType = normalizeWorkspaceAssetType(type);
+  const id = String(asset.id || '').trim().slice(0, 160);
+  const title = String(asset.title || asset.name || '').trim().slice(0, 240);
+  const sourceUrl = normalizePublicMediaUrl(
+    asset.src || asset.url || asset.imageUrl || asset.videoUrl,
+    assetType,
+  ).slice(0, WORKSPACE_MAX_ASSET_URL_LENGTH);
+  if (!assetType || !id || !sourceUrl) return null;
+
+  const metadata = sanitizePublicMetadata({ ...asset }, assetType);
+  delete metadata.id;
+  delete metadata.title;
+  delete metadata.name;
+  delete metadata.src;
+  delete metadata.url;
+  delete metadata.imageUrl;
+  delete metadata.videoUrl;
+
+  let metadataJson = '{}';
+  try {
+    metadataJson = JSON.stringify(metadata);
+  } catch {
+    metadataJson = '{}';
+  }
+  if (metadataJson.length > WORKSPACE_MAX_ASSET_METADATA_LENGTH) {
+    metadataJson = JSON.stringify({
+      meta: String(asset.meta || '').slice(0, 1000),
+      category: String(asset.category || '').slice(0, 160),
+      duration: String(asset.duration || '').slice(0, 80),
+    });
+  }
+
+  return {
+    id,
+    userId: '',
+    conversationId: String(conversationId || '').trim(),
+    type: assetType,
+    title,
+    sourceUrl,
+    metadataJson,
+    createdAt: normalizeWorkspaceCreatedAt(asset.createdAt),
+  };
+}
+
+function extractWorkspaceAssets(userId, conversationId, workspace) {
+  const source = workspace && typeof workspace === 'object' && !Array.isArray(workspace)
+    ? workspace
+    : {};
+  const assets = [
+    ...(Array.isArray(source.images)
+      ? source.images.map(asset => normalizeWorkspaceAsset(asset, 'image', conversationId))
+      : []),
+    ...(Array.isArray(source.videos)
+      ? source.videos.map(asset => normalizeWorkspaceAsset(asset, 'video', conversationId))
+      : []),
+  ].filter(Boolean);
+  const seenIds = new Set();
+  return assets
+    .filter(asset => {
+      if (seenIds.has(asset.id)) return false;
+      seenIds.add(asset.id);
+      return true;
+    })
+    .slice(0, WORKSPACE_MAX_ASSETS)
+    .map(asset => ({ ...asset, userId }));
+}
+
+function replaceWorkspaceAssets(userId, conversationId, workspace, updatedAt, preparedAssets = null) {
+  const assets = (Array.isArray(preparedAssets)
+    ? preparedAssets
+    : extractWorkspaceAssets(userId, conversationId, workspace)
+  ).map(asset => ({ ...asset, userId }));
+  db.prepare(`
+    DELETE FROM workspace_assets
+    WHERE user_id = ? AND conversation_id = ?
+  `).run(userId, conversationId);
+
+  const insert = db.prepare(`
+    INSERT INTO workspace_assets (
+      id, user_id, conversation_id, asset_type, title, source_url,
+      metadata_json, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  for (const asset of assets) {
+    insert.run(
+      asset.id,
+      asset.userId,
+      asset.conversationId,
+      asset.type,
+      asset.title,
+      asset.sourceUrl,
+      asset.metadataJson,
+      asset.createdAt,
+      updatedAt,
+    );
+  }
+}
+
+function rowToWorkspaceAsset(row) {
+  let metadata = {};
+  try {
+    const parsed = JSON.parse(row.metadata_json || '{}');
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) metadata = parsed;
+  } catch {
+    metadata = {};
+  }
+  metadata = sanitizePublicMetadata(metadata, row.asset_type);
+  return {
+    ...metadata,
+    id: row.id,
+    title: row.title || metadata.title || '',
+    src: normalizePublicMediaUrl(row.source_url, row.asset_type),
+    ...(row.asset_type === 'image' ? { imageUrl: normalizePublicMediaUrl(row.source_url, row.asset_type) } : {}),
+    createdAt: row.created_at,
+  };
+}
+
+function listWorkspaceAssetRows(userId, conversationId) {
+  return db.prepare(`
+    SELECT id, asset_type, title, source_url, metadata_json, created_at
+    FROM workspace_assets
+    WHERE user_id = ? AND conversation_id = ?
+    ORDER BY updated_at DESC, created_at DESC
+  `).all(userId, conversationId);
+}
+
+function hydrateWorkspaceAssets(row, workspace, assetRows = null) {
+  const rows = assetRows || listWorkspaceAssetRows(row.user_id, row.id);
+  if (rows.length === 0) return workspace;
+  return {
+    ...workspace,
+    images: rows.filter(asset => asset.asset_type === 'image').map(rowToWorkspaceAsset),
+    videos: rows.filter(asset => asset.asset_type === 'video').map(rowToWorkspaceAsset),
+  };
+}
+
+function rowToWorkspaceConversation(row, assetRows = null) {
+  let messages = [];
+  let workspace = {};
+  try {
+    messages = normalizeWorkspaceMessages(JSON.parse(row.messages_json || '[]'));
+  } catch {
+    messages = [];
+  }
+  try {
+    workspace = normalizeWorkspaceSnapshot(JSON.parse(row.workspace_json || '{}'));
+  } catch {
+    workspace = {};
+  }
+  workspace = sanitizeWorkspaceSnapshotMedia(workspace);
+  workspace = hydrateWorkspaceAssets(row, workspace, assetRows);
+  return {
+    id: row.id,
+    title: normalizeWorkspaceTitle(row.title),
+    messages,
+    workspace,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    version: Math.max(1, Number(row.version) || 1),
+  };
+}
+
+function normalizeWorkspaceConversationInput({ id, title, messages, createdAt, version, workspace } = {}) {
+  const normalizedVersion = version === undefined || version === null || version === ''
+    ? null
+    : Number(version);
+  if (normalizedVersion !== null && (!Number.isInteger(normalizedVersion) || normalizedVersion < 1)) {
+    throw new Error('Invalid workspace conversation version');
+  }
+  const normalizedId = normalizeWorkspaceId(id);
+  const normalizedWorkspace = sanitizeWorkspaceSnapshotMedia(normalizeWorkspaceSnapshot(workspace));
+  return {
+    id: normalizedId,
+    title: normalizeWorkspaceTitle(title),
+    messages: normalizeWorkspaceMessages(messages),
+    workspace: normalizedWorkspace,
+    // Keep asset rows separate so large image/video lists are not lost when
+    // the conversation JSON snapshot is compacted.
+    workspaceAssets: extractWorkspaceAssets('', normalizedId, normalizedWorkspace),
+    createdAt: normalizeWorkspaceCreatedAt(createdAt),
+    version: normalizedVersion,
+  };
+}
+
+export function listWorkspaceConversations(userId, { limit = WORKSPACE_MAX_CONVERSATIONS } = {}) {
+  const normalizedUserId = String(userId || '').trim();
+  if (!normalizedUserId) return [];
+  const normalizedLimit = Math.max(1, Math.min(WORKSPACE_MAX_CONVERSATIONS, Number(limit) || WORKSPACE_MAX_CONVERSATIONS));
+  const rows = db.prepare(`
+    SELECT id, user_id, title, messages_json, workspace_json, version, created_at, updated_at
+    FROM workspace_conversations
+    WHERE user_id = ?
+    ORDER BY updated_at DESC
+    LIMIT ?
+  `).all(normalizedUserId, normalizedLimit);
+  if (rows.length === 0) return [];
+
+  const placeholders = rows.map(() => '?').join(', ');
+  const assets = db.prepare(`
+    SELECT conversation_id, asset_type, id, title, source_url, metadata_json, created_at
+    FROM workspace_assets
+    WHERE user_id = ? AND conversation_id IN (${placeholders})
+    ORDER BY updated_at DESC, created_at DESC
+  `).all(normalizedUserId, ...rows.map(row => row.id));
+  const assetsByConversation = new Map();
+  for (const asset of assets) {
+    const current = assetsByConversation.get(asset.conversation_id) || [];
+    current.push(asset);
+    assetsByConversation.set(asset.conversation_id, current);
+  }
+  return rows.map(row => rowToWorkspaceConversation(row, assetsByConversation.get(row.id) || []));
+}
+
+export function upsertWorkspaceConversation({
+  userId,
+  id,
+  title,
+  messages,
+  createdAt,
+  version,
+  workspace,
+} = {}) {
+  const normalizedUserId = String(userId || '').trim();
+  if (!normalizedUserId) throw new Error('Authentication required');
+
+  const input = normalizeWorkspaceConversationInput({ id, title, messages, createdAt, version, workspace });
+  const existing = db.prepare(`
+    SELECT id, user_id, title, messages_json, workspace_json, version, created_at, updated_at
+    FROM workspace_conversations
+    WHERE id = ? AND user_id = ?
+  `).get(input.id, normalizedUserId);
+  const now = nowIso();
+
+  if (!existing) {
+    const owner = db.prepare('SELECT user_id FROM workspace_conversations WHERE id = ?').get(input.id);
+    if (owner && String(owner.user_id) !== normalizedUserId) {
+      throw new Error('Workspace conversation id is already in use');
+    }
+    const insert = db.transaction(() => {
+      db.prepare(`
+        INSERT INTO workspace_conversations (
+          id, user_id, title, messages_json, workspace_json, version, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+      `).run(
+        input.id,
+        normalizedUserId,
+        input.title,
+        JSON.stringify(input.messages),
+        JSON.stringify(input.workspace),
+        input.createdAt,
+        now,
+      );
+      replaceWorkspaceAssets(normalizedUserId, input.id, input.workspace, now, input.workspaceAssets);
+      return db.prepare(`
+        SELECT id, user_id, title, messages_json, workspace_json, version, created_at, updated_at
+        FROM workspace_conversations
+        WHERE id = ? AND user_id = ?
+      `).get(input.id, normalizedUserId);
+    });
+    return rowToWorkspaceConversation(insert());
+  }
+
+  if (input.version !== null && input.version !== Number(existing.version)) {
+    throw new WorkspaceConversationConflictError(rowToWorkspaceConversation(existing));
+  }
+
+  const update = input.version === null
+    ? db.prepare(`
+        UPDATE workspace_conversations
+        SET title = ?, messages_json = ?, workspace_json = ?, version = version + 1, updated_at = ?
+        WHERE id = ? AND user_id = ?
+      `)
+    : db.prepare(`
+        UPDATE workspace_conversations
+        SET title = ?, messages_json = ?, workspace_json = ?, version = version + 1, updated_at = ?
+        WHERE id = ? AND user_id = ? AND version = ?
+      `);
+  const updateConversation = db.transaction(() => {
+    const result = input.version === null
+      ? update.run(input.title, JSON.stringify(input.messages), JSON.stringify(input.workspace), now, input.id, normalizedUserId)
+      : update.run(input.title, JSON.stringify(input.messages), JSON.stringify(input.workspace), now, input.id, normalizedUserId, input.version);
+    if (result.changes === 1) {
+      replaceWorkspaceAssets(normalizedUserId, input.id, input.workspace, now, input.workspaceAssets);
+    }
+    return result;
+  });
+  const result = updateConversation();
+
+  if (result.changes !== 1) {
+    const current = db.prepare(`
+      SELECT id, user_id, title, messages_json, workspace_json, version, created_at, updated_at
+      FROM workspace_conversations
+      WHERE id = ? AND user_id = ?
+    `).get(input.id, normalizedUserId);
+    throw new WorkspaceConversationConflictError(current ? rowToWorkspaceConversation(current) : null);
+  }
+
+  return rowToWorkspaceConversation(db.prepare(`
+    SELECT id, user_id, title, messages_json, workspace_json, version, created_at, updated_at
+    FROM workspace_conversations
+    WHERE id = ? AND user_id = ?
+  `).get(input.id, normalizedUserId));
+}
+
+export function importWorkspaceConversations(userId, conversations = []) {
+  const normalizedUserId = String(userId || '').trim();
+  if (!normalizedUserId) throw new Error('Authentication required');
+  const inputs = (Array.isArray(conversations) ? conversations : [])
+    .slice(0, WORKSPACE_MAX_CONVERSATIONS)
+    .map(conversation => normalizeWorkspaceConversationInput(conversation || {}));
+  if (inputs.length === 0) return listWorkspaceConversations(normalizedUserId);
+
+  const insert = db.prepare(`
+    INSERT OR IGNORE INTO workspace_conversations (
+      id, user_id, title, messages_json, workspace_json, version, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+  `);
+  const importedAt = nowIso();
+  const tx = db.transaction((items) => {
+    for (const input of items) {
+      const result = insert.run(
+        input.id,
+        normalizedUserId,
+        input.title,
+        JSON.stringify(input.messages),
+        JSON.stringify(input.workspace),
+        input.createdAt,
+        importedAt,
+      );
+      if (result.changes === 1) {
+        replaceWorkspaceAssets(normalizedUserId, input.id, input.workspace, importedAt, input.workspaceAssets);
+      }
+    }
+  });
+  tx(inputs);
+  return listWorkspaceConversations(normalizedUserId);
+}
+
+export function deleteWorkspaceConversation(userId, conversationId) {
+  const normalizedUserId = String(userId || '').trim();
+  const id = normalizeWorkspaceId(conversationId);
+  if (!normalizedUserId) throw new Error('Authentication required');
+  const remove = db.transaction(() => {
+    db.prepare(`
+      DELETE FROM workspace_assets
+      WHERE conversation_id = ? AND user_id = ?
+    `).run(id, normalizedUserId);
+    return db.prepare(`
+      DELETE FROM workspace_conversations
+      WHERE id = ? AND user_id = ?
+    `).run(id, normalizedUserId);
+  });
+  return remove().changes > 0;
+}
+
+export class WorkspaceStateConflictError extends Error {
+  constructor(current) {
+    super('Workspace state was updated elsewhere');
+    this.name = 'WorkspaceStateConflictError';
+    this.code = 'WORKSPACE_STATE_CONFLICT';
+    this.current = current;
+  }
+}
+
+const DEFAULT_WORKSPACE_SETTINGS = {
+  compactLayout: false,
+  autoScrollChat: true,
+};
+
+function normalizeWorkspaceStringList(value, maxItems = WORKSPACE_MAX_HIDDEN_ITEMS) {
+  return [...new Set(
+    (Array.isArray(value) ? value : [])
+      .map(item => String(item || '').trim().slice(0, WORKSPACE_MAX_HIDDEN_ITEM_LENGTH))
+      .filter(Boolean),
+  )].slice(0, maxItems);
+}
+
+function normalizeWorkspaceSettings(value) {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const normalized = {
+    ...DEFAULT_WORKSPACE_SETTINGS,
+    compactLayout: source.compactLayout === true,
+    autoScrollChat: source.autoScrollChat !== false,
+  };
+  try {
+    if (JSON.stringify(normalized).length > WORKSPACE_MAX_SETTINGS_LENGTH) return { ...DEFAULT_WORKSPACE_SETTINGS };
+  } catch {
+    return { ...DEFAULT_WORKSPACE_SETTINGS };
+  }
+  return normalized;
+}
+
+function normalizeWorkspaceStateVersion(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const normalized = Number(value);
+  if (!Number.isInteger(normalized) || normalized < 0) {
+    throw new Error('Invalid workspace state version');
+  }
+  return normalized;
+}
+
+function normalizeWorkspaceActiveConversationId(value) {
+  const normalized = String(value || '').trim();
+  if (!normalized) return '';
+  return normalizeWorkspaceId(normalized);
+}
+
+function rowToWorkspaceState(row) {
+  let hiddenImageKeys = [];
+  let hiddenImageIds = [];
+  let settings = { ...DEFAULT_WORKSPACE_SETTINGS };
+  if (row) {
+    try { hiddenImageKeys = normalizeWorkspaceStringList(JSON.parse(row.hidden_image_keys_json || '[]')); } catch {}
+    try { hiddenImageIds = normalizeWorkspaceStringList(JSON.parse(row.hidden_image_ids_json || '[]')); } catch {}
+    try { settings = normalizeWorkspaceSettings(JSON.parse(row.settings_json || '{}')); } catch {}
+  }
+  return {
+    hiddenImageKeys,
+    hiddenImageIds,
+    settings,
+    activeConversationId: row?.active_conversation_id || '',
+    version: row ? Math.max(1, Number(row.version) || 1) : 0,
+    createdAt: row?.created_at || null,
+    updatedAt: row?.updated_at || null,
+  };
+}
+
+function normalizeWorkspaceStateInput({
+  hiddenImageKeys,
+  hiddenImageIds,
+  settings,
+  activeConversationId,
+  version,
+} = {}) {
+  return {
+    hiddenImageKeys: normalizeWorkspaceStringList(hiddenImageKeys),
+    hiddenImageIds: normalizeWorkspaceStringList(hiddenImageIds),
+    settings: normalizeWorkspaceSettings(settings),
+    activeConversationId: normalizeWorkspaceActiveConversationId(activeConversationId),
+    version: normalizeWorkspaceStateVersion(version),
+  };
+}
+
+export function getWorkspaceState(userId) {
+  const normalizedUserId = String(userId || '').trim();
+  if (!normalizedUserId) throw new Error('Authentication required');
+  const row = db.prepare(`
+    SELECT hidden_image_keys_json, hidden_image_ids_json, settings_json,
+           active_conversation_id, version, created_at, updated_at
+    FROM workspace_state
+    WHERE user_id = ?
+  `).get(normalizedUserId);
+  return rowToWorkspaceState(row);
+}
+
+export function upsertWorkspaceState({
+  userId,
+  hiddenImageKeys,
+  hiddenImageIds,
+  settings,
+  activeConversationId,
+  version,
+} = {}) {
+  const normalizedUserId = String(userId || '').trim();
+  if (!normalizedUserId) throw new Error('Authentication required');
+  const input = normalizeWorkspaceStateInput({
+    hiddenImageKeys,
+    hiddenImageIds,
+    settings,
+    activeConversationId,
+    version,
+  });
+  const existing = db.prepare(`
+    SELECT hidden_image_keys_json, hidden_image_ids_json, settings_json,
+           active_conversation_id, version, created_at, updated_at
+    FROM workspace_state
+    WHERE user_id = ?
+  `).get(normalizedUserId);
+  const now = nowIso();
+
+  if (!existing) {
+    if (input.version !== null && input.version > 0) {
+      throw new WorkspaceStateConflictError(getWorkspaceState(normalizedUserId));
+    }
+    db.prepare(`
+      INSERT INTO workspace_state (
+        user_id, hidden_image_keys_json, hidden_image_ids_json, settings_json,
+        active_conversation_id, version, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+    `).run(
+      normalizedUserId,
+      JSON.stringify(input.hiddenImageKeys),
+      JSON.stringify(input.hiddenImageIds),
+      JSON.stringify(input.settings),
+      input.activeConversationId,
+      now,
+      now,
+    );
+    return getWorkspaceState(normalizedUserId);
+  }
+
+  const current = rowToWorkspaceState(existing);
+  if (input.version !== null && input.version !== current.version) {
+    throw new WorkspaceStateConflictError(current);
+  }
+  const update = input.version === null
+    ? db.prepare(`
+      UPDATE workspace_state
+      SET hidden_image_keys_json = ?, hidden_image_ids_json = ?, settings_json = ?,
+          active_conversation_id = ?, version = version + 1, updated_at = ?
+      WHERE user_id = ?
+    `)
+    : db.prepare(`
+      UPDATE workspace_state
+      SET hidden_image_keys_json = ?, hidden_image_ids_json = ?, settings_json = ?,
+          active_conversation_id = ?, version = version + 1, updated_at = ?
+      WHERE user_id = ? AND version = ?
+    `);
+  const result = input.version === null
+    ? update.run(
+      JSON.stringify(input.hiddenImageKeys),
+      JSON.stringify(input.hiddenImageIds),
+      JSON.stringify(input.settings),
+      input.activeConversationId,
+      now,
+      normalizedUserId,
+    )
+    : update.run(
+      JSON.stringify(input.hiddenImageKeys),
+      JSON.stringify(input.hiddenImageIds),
+      JSON.stringify(input.settings),
+      input.activeConversationId,
+      now,
+      normalizedUserId,
+      input.version,
+    );
+  if (result.changes !== 1) {
+    throw new WorkspaceStateConflictError(getWorkspaceState(normalizedUserId));
+  }
+  return getWorkspaceState(normalizedUserId);
+}
+
 // Generation History
 export function listHistory(userId) {
   if (userId) return db.prepare('SELECT * FROM gen_history WHERE user_id = ? ORDER BY created_at DESC').all(userId).map(rowToHistory);
@@ -1300,7 +2493,19 @@ function shouldAutoPublishGenerated({ userId, publishToPrompts }) {
   return !!user?.isAdmin; // only admin users auto-publish to global feed
 }
 
-export function addHistory({ imageUrl, prompt, model, mode, userId, jobId, category = '', publishToPrompts }) {
+export function addHistory({
+  imageUrl,
+  prompt,
+  model,
+  mode,
+  userId,
+  jobId,
+  referenceAssetId = '',
+  storyboardShotId = '',
+  conversationId = '',
+  category = '',
+  publishToPrompts,
+}) {
   if (jobId) {
     const existing = db.prepare('SELECT * FROM gen_history WHERE job_id = ? LIMIT 1').get(jobId);
     if (existing) return rowToHistory(existing);
@@ -1316,11 +2521,28 @@ export function addHistory({ imageUrl, prompt, model, mode, userId, jobId, categ
   }
 
   const inferred = inferCategoryAndTags(prompt || '');
-  const normalizedCategory = String(category || inferred.category || 'Generated').trim() || 'Generated';
+  const explicitCategory = normalizeGenerationCategory(category);
+  // The category is selected before generation. Content inference is only a
+  // fallback for legacy callers that did not provide generation metadata.
+  const normalizedCategory = explicitCategory || inferred.category || 'Generated';
 
   // Always keep a complete generation history.
-  db.prepare('INSERT INTO gen_history (id, image_url, prompt, model, mode, user_id, category, moderation_status, job_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(id, normalizedImageUrl, prompt, model || '', mode || 'text', userId || null, normalizedCategory, moderationStatus, jobId || null, createdAt);
+  db.prepare('INSERT INTO gen_history (id, image_url, prompt, model, mode, user_id, category, moderation_status, job_id, reference_asset_id, storyboard_shot_id, conversation_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(
+      id,
+      normalizedImageUrl,
+      prompt,
+      model || '',
+      mode || 'text',
+      userId || null,
+      normalizedCategory,
+      moderationStatus,
+      jobId || null,
+      String(referenceAssetId || '').trim().slice(0, 160),
+      String(storyboardShotId || '').trim().slice(0, 160),
+      String(conversationId || '').trim().slice(0, 160),
+      createdAt,
+    );
 
   // Only developer/internal/admin generated images are auto-published.
   if (shouldPublish) {
@@ -1383,6 +2605,7 @@ export function approveHistory(id) {
   // Also insert into prompts table (single source of truth for approved content)
   // and generated_images (gallery source) — all in one transaction.
   const inferred = inferCategoryAndTags(row.prompt || '');
+  const finalCategory = normalizeGenerationCategory(row.category) || inferred.category || 'Generated';
   const user = row.user_id ? getUserById(row.user_id) : null;
   const promptsId = `gen-${id}`;
 
@@ -1401,7 +2624,7 @@ export function approveHistory(id) {
       0,
       row.user_id || null,
       JSON.stringify(inferred.tags),
-      row.category || inferred.category,
+      finalCategory,
       row.created_at,
     );
     db.prepare(`
@@ -1414,7 +2637,7 @@ export function approveHistory(id) {
       row.prompt || '',
       row.model || '',
       row.image_url,
-      row.category || inferred.category,
+      finalCategory,
       JSON.stringify(inferred.tags),
       user?.username || 'Lovioa',
       user?.avatar || 'https://api.dicebear.com/7.x/miniavs/svg?seed=pf',
@@ -1443,12 +2666,14 @@ export function rowToModerationItem(row) {
     ...check,
     historyId: historyId || null,
     historyStatus: historyRow?.moderation_status || null,
-    historyImageUrl: historyRow?.image_url || '',
+    historyImageUrl: normalizePublicImageUrl(historyRow?.image_url || ''),
     historyPrompt: historyRow?.prompt || '',
     historyCategory: historyRow?.category || '',
     promptExists: !!promptRow,
     generatedExists: !!generatedRow,
-    imageUrl: check.imageUrl || historyRow?.image_url || generatedRow?.image_url || '',
+    imageUrl: normalizePublicImageUrl(
+      check.imageUrl || historyRow?.image_url || generatedRow?.image_url || '',
+    ),
     prompt: check.sourcePrompt || check.textContent || historyRow?.prompt || '',
     category: historyRow?.category || generatedRow?.category || 'Generated',
   };
@@ -1534,7 +2759,7 @@ export function listGenHistoryForModeration({ category = '', search = '', status
     params.category = category;
   }
   if (search && String(search).trim()) {
-    where.push('(LOWER(prompt) LIKE @q OR LOWER(image_url) LIKE @q)');
+    where.push('(LOWER(prompt) LIKE @q OR LOWER(prompt_zh) LIKE @q OR LOWER(image_url) LIKE @q)');
     params.q = `%${String(search).toLowerCase()}%`;
   }
 
@@ -1586,12 +2811,45 @@ export function enqueueGenJob({
   heartbeatRunId = '',
   heartbeatKind = '',
   heartbeatCategory = '',
+  category = '',
   preferredChannel = '',
   priority = 0,
 }) {
+  const status = String(initialStatus || 'queued');
+  const normalizedGenerationOptions = generationOptions && typeof generationOptions === 'object'
+    ? generationOptions
+    : {};
+  const forceNew = Boolean(normalizedGenerationOptions.forceNew || normalizedGenerationOptions.allowDuplicate);
+  const dedupKey = createHash('sha256')
+    .update(JSON.stringify({
+      prompt: normalizePromptFingerprint(prompt),
+      mode: String(mode || 'text'),
+      model: String(model || ''),
+      size: String(size || ''),
+      quality: String(quality || ''),
+      negativePrompt: normalizePromptFingerprint(negativePrompt),
+      referenceImageUrl: normalizeImageFingerprint(referenceImageUrl),
+      aspectRatio: String(normalizedGenerationOptions.aspectRatio || ''),
+    }))
+    .digest('hex');
+
+  // A double click, retrying browser request, or duplicated internal enqueue
+  // must not create two identical in-flight generations or charge twice.
+  if (!isHeartbeat && !forceNew) {
+    const existing = db.prepare(`
+      SELECT *
+      FROM gen_jobs
+      WHERE dedup_key = ?
+        AND user_id IS ?
+        AND status IN ('queued', 'running', 'fast_running')
+      ORDER BY created_at DESC
+      LIMIT 1
+    `).get(dedupKey, userId || null);
+    if (existing) return rowToGenJob(existing);
+  }
+
   const id = randomUUID();
   const now = nowIso();
-  const status = String(initialStatus || 'queued');
   const isRunningLike = status === 'running' || status === 'fast_running';
   const initialAttemptCount = isRunningLike ? 1 : 0;
   const startedAt = isRunningLike ? now : null;
@@ -1604,7 +2862,7 @@ export function enqueueGenJob({
     // - valid userId with balance: deducts the first available credit type atomically.
     if (userId) {
       // Keep legacy accounts consistent with the billing endpoint before charging.
-      ensureUserBalance(userId, 3);
+      ensureUserBalance(userId, CREDITS_PER_IMAGE * 3);
       const deducted = tryDeductCredit(userId);
       if (!deducted) throw new Error('INSUFFICIENT_CREDITS');
     }
@@ -1612,13 +2870,13 @@ export function enqueueGenJob({
     db.prepare(`
       INSERT INTO gen_jobs (
         id, user_id, mode, model, size, quality, generation_options_json, prompt, negative_prompt,
-        reference_image_url, edit_strength, publish_to_prompts, status, attempt_count, max_attempts, queued_at, next_retry_at,
+        reference_image_url, edit_strength, dedup_key, category, publish_to_prompts, status, attempt_count, max_attempts, queued_at, next_retry_at,
         last_error, result_image_url, source_channel, provider_name, latency_ms, is_heartbeat,
         heartbeat_run_id, heartbeat_kind, heartbeat_category, preferred_channel, priority,
         created_at, updated_at, started_at, finished_at
       ) VALUES (
         @id, @userId, @mode, @model, @size, @quality, @generationOptionsJson, @prompt, @negativePrompt,
-        @referenceImageUrl, @editStrength, @publishToPrompts, @status, @attemptCount, @maxAttempts, @queuedAt, @nextRetryAt,
+        @referenceImageUrl, @editStrength, @dedupKey, @category, @publishToPrompts, @status, @attemptCount, @maxAttempts, @queuedAt, @nextRetryAt,
         @lastError, @resultImageUrl, @sourceChannel, @providerName, @latencyMs, @isHeartbeat,
         @heartbeatRunId, @heartbeatKind, @heartbeatCategory, @preferredChannel, @priority,
         @createdAt, @updatedAt, @startedAt, @finishedAt
@@ -1630,11 +2888,13 @@ export function enqueueGenJob({
       model,
       size,
       quality,
-      generationOptionsJson: JSON.stringify(generationOptions && typeof generationOptions === 'object' ? generationOptions : {}),
+      generationOptionsJson: JSON.stringify(normalizedGenerationOptions),
       prompt,
       negativePrompt,
       referenceImageUrl,
       editStrength: editStrength ?? null,
+      dedupKey,
+      category: normalizeGenerationCategory(category) || '',
       publishToPrompts: publishToPrompts ? 1 : 0,
       status,
       attemptCount: initialAttemptCount,
@@ -2016,6 +3276,7 @@ function rowToGalleryImage(row) {
     id: row.id,
     imageUrl: safeImageUrl,
     prompt: sourcePrompt,
+    promptZh: String(row.prompt_zh || '').trim(),
     author: {
       name: row.author_name || 'Lovioa',
       avatar: row.author_avatar || 'https://api.dicebear.com/7.x/miniavs/svg?seed=pf',
@@ -2033,7 +3294,7 @@ function rowToGalleryImage(row) {
 
 export function listGeneratedImages({ category, search, limit = 300 }) {
   const params = { limit: Math.max(1, Math.min(300, Number(limit || 300))) };
-  const historyParams = { limit: params.limit };
+  const sourceLimit = Math.min(2000, Math.max(params.limit * 4, params.limit));
 
   const where = [];
   const historyWhere = [];
@@ -2042,26 +3303,25 @@ export function listGeneratedImages({ category, search, limit = 300 }) {
     where.push('category = @category');
     historyWhere.push('category = @category');
     params.category = category;
-    historyParams.category = category;
   }
   if (search && String(search).trim()) {
     const q = `%${String(search).toLowerCase()}%`;
     where.push('(LOWER(source_prompt) LIKE @q OR LOWER(tags_json) LIKE @q OR LOWER(category) LIKE @q OR LOWER(author_name) LIKE @q)');
-    historyWhere.push('(LOWER(prompt) LIKE @q OR LOWER(image_url) LIKE @q)');
+    historyWhere.push('(LOWER(prompt) LIKE @q OR LOWER(prompt_zh) LIKE @q OR LOWER(image_url) LIKE @q)');
     params.q = q;
-    historyParams.q = q;
   }
+  historyWhere.push('NOT EXISTS (SELECT 1 FROM generated_images g2 WHERE g2.id = gen_history.id)');
   const whereStr = where.length ? `WHERE ${where.join(' AND ')}` : '';
-  const historyWhereStr = historyWhere.length ? `WHERE ${historyWhere.join(' AND ')}` : '';
+  const historyWhereStr = `WHERE ${historyWhere.join(' AND ')}`;
 
-  // Use UNION ALL + subquery to ensure a single global ORDER BY and LIMIT,
-  // avoiding the previous bug where each source independently fetched 300 rows
-  // before deduplication.
+  // generated_images is the canonical gallery source. History is only included
+  // when its row has not been materialized there yet.
   const sql = `
     SELECT * FROM (
       SELECT
         id,
         image_url,
+        prompt_zh,
         source_prompt AS prompt,
         model,
         category,
@@ -2079,6 +3339,7 @@ export function listGeneratedImages({ category, search, limit = 300 }) {
       SELECT
         id,
         image_url,
+        '' AS prompt_zh,
         prompt,
         model,
         category,
@@ -2094,13 +3355,23 @@ export function listGeneratedImages({ category, search, limit = 300 }) {
       ${historyWhereStr}
     ) combined
     ORDER BY created_at DESC
-    LIMIT @limit
+    LIMIT @sourceLimit
   `;
 
-  const rows = db.prepare(sql).all(params).map(rowToGalleryImage);
+  const rows = db.prepare(sql).all({ ...params, sourceLimit }).map(rowToGalleryImage);
   const byId = new Map();
+  const byImage = new Set();
+  const byPrompt = new Set();
   for (const item of rows) {
-    if (!byId.has(item.id)) byId.set(item.id, item);
+    const imageKey = normalizeImageFingerprint(item.imageUrl);
+    const promptKey = normalizePromptFingerprint(item.prompt);
+    if (byId.has(item.id)) continue;
+    if (imageKey && byImage.has(imageKey)) continue;
+    if (promptKey && byPrompt.has(promptKey)) continue;
+    byId.set(item.id, item);
+    if (imageKey) byImage.add(imageKey);
+    if (promptKey) byPrompt.add(promptKey);
+    if (byId.size >= params.limit) break;
   }
   return [...byId.values()];
 }
@@ -2232,6 +3503,7 @@ export function createHeartbeatRun({
 } = {}) {
   const id = randomUUID();
   const now = nowIso();
+  const safeDetails = sanitizePublicMetadata(details);
   db.prepare(`
     INSERT INTO heartbeat_runs (
       id, kind, status, planned_jobs, queued_jobs, succeeded_jobs, failed_jobs,
@@ -2242,7 +3514,7 @@ export function createHeartbeatRun({
     String(kind || 'api_stability'),
     Math.max(0, Number(plannedJobs || 0)),
     JSON.stringify(Array.isArray(generatedCategories) ? generatedCategories : []),
-    JSON.stringify(details || {}),
+    JSON.stringify(safeDetails),
     now,
     now,
     now,
@@ -2284,7 +3556,7 @@ export function touchHeartbeatRun(id, updates = {}) {
   }
   if ('details' in updates) {
     sets.push('details_json = @detailsJson');
-    params.detailsJson = JSON.stringify(updates.details || {});
+    params.detailsJson = JSON.stringify(sanitizePublicMetadata(updates.details || {}));
   }
   if ('finishedAt' in updates) {
     sets.push('finished_at = @finishedAt');
@@ -2563,7 +3835,7 @@ export function logAdminAction({ adminUserId, adminUsername, action, targetUserI
   db.prepare(`
     INSERT INTO gen_admin_logs (id, admin_user_id, admin_username, action, target_user_id, target_username, target_prompt_id, details, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, adminUserId, adminUsername, action, targetUserId, targetUsername, targetPromptId, JSON.stringify(details), nowIso());
+  `).run(id, adminUserId, adminUsername, action, targetUserId, targetUsername, targetPromptId, JSON.stringify(sanitizePublicMetadata(details)), nowIso());
   return rowToAdminLog(db.prepare('SELECT * FROM gen_admin_logs WHERE id = ?').get(id));
 }
 
@@ -2585,7 +3857,7 @@ function rowToAdminLog(row) {
     targetUserId: row.target_user_id,
     targetUsername: row.target_username,
     targetPromptId: row.target_prompt_id,
-    details,
+    details: sanitizePublicMetadata(details),
     createdAt: row.created_at,
   };
 }
@@ -2593,7 +3865,11 @@ function rowToAdminLog(row) {
 export function getUserStats(userId) {
   const promptsCount = db.prepare('SELECT COUNT(1) AS c FROM prompts WHERE author_user_id = ?').get(userId)?.c || 0;
   const likesCount = db.prepare('SELECT COALESCE(SUM(likes), 0) AS c FROM prompts WHERE author_user_id = ?').get(userId)?.c || 0;
-  const savedCount = db.prepare('SELECT COUNT(1) AS c FROM prompts WHERE author_user_id = ? AND saved = 1').get(userId)?.c || 0;
+  const savedCount = db.prepare(`
+    SELECT COUNT(1) AS c
+    FROM prompt_user_preferences
+    WHERE user_id = ? AND saved = 1
+  `).get(userId)?.c || 0;
   const historyCount = db.prepare('SELECT COUNT(1) AS c FROM gen_history WHERE user_id = ?').get(userId)?.c || 0;
   return { promptsCount, likesCount, savedCount, historyCount };
 }
@@ -2607,32 +3883,112 @@ export function updateUserAdmin(userId, { isAdmin }) {
 
 export function deleteUser(userId) {
   // Delete user's prompts first (cascade)
-  db.prepare('DELETE FROM prompts WHERE author_user_id = ?').run(userId);
-  db.prepare('DELETE FROM gen_history WHERE user_id = ?').run(userId);
-  db.prepare('DELETE FROM user_daily_rewards WHERE user_id = ?').run(userId);
-  db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+  const remove = db.transaction(() => {
+    db.prepare('DELETE FROM prompt_user_preferences WHERE user_id = ? OR prompt_id IN (SELECT id FROM prompts WHERE author_user_id = ?)').run(userId, userId);
+    db.prepare('DELETE FROM workspace_state WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM workspace_assets WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM workspace_conversations WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM prompts WHERE author_user_id = ?').run(userId);
+    db.prepare('DELETE FROM gen_history WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM user_daily_rewards WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+  });
+  remove();
 }
 
 // ── Billing / Subscriptions ────────────────────────────────────────────────────
 
-export function getUserBalance(userId) {
+function readUserBalance(userId) {
   const row = db.prepare('SELECT * FROM user_balance WHERE user_id = ?').get(userId);
   return row ? {
     userId: row.user_id,
     freeCredits: row.free_credits,
     paidCredits: row.paid_credits,
+    totalCredits: row.free_credits + row.paid_credits,
+    monthlyCreditQuota: row.monthly_credit_quota,
+    creditPeriod: row.credit_period,
+    creditsPerImage: CREDITS_PER_IMAGE,
+    monthlyCarryoverRate: MONTHLY_CARRYOVER_RATE,
     lifetimeGenerations: row.lifetime_generations,
     updatedAt: row.updated_at,
   } : null;
 }
 
-export function ensureUserBalance(userId, freeCredits = 3) {
+function applyMonthlyCreditRollover(userId) {
+  const row = db.prepare(`
+    SELECT free_credits, paid_credits, monthly_credit_quota, credit_period
+    FROM user_balance
+    WHERE user_id = ?
+  `).get(userId);
+  if (!row) return;
+
+  const currentPeriod = getBillingMonthKey();
+  let creditPeriod = String(row.credit_period || '').trim();
+  let freeCredits = Math.max(0, Number(row.free_credits) || 0);
+  let paidCredits = Math.max(0, Number(row.paid_credits) || 0);
+  let totalCredits = freeCredits + paidCredits;
+  let monthlyQuota = Math.max(0, Number(row.monthly_credit_quota) || 0);
+  let changed = false;
+
+  if (!/^\d{4}-\d{2}$/.test(creditPeriod)) {
+    creditPeriod = currentPeriod;
+    monthlyQuota = Math.max(monthlyQuota, totalCredits);
+    changed = true;
+  }
+
+  while (creditPeriod < currentPeriod) {
+    const carryoverCap = Math.floor(monthlyQuota * MONTHLY_CARRYOVER_RATE);
+    totalCredits = Math.min(totalCredits, carryoverCap);
+    freeCredits = 0;
+    paidCredits = totalCredits;
+    monthlyQuota = totalCredits;
+    creditPeriod = nextBillingMonth(creditPeriod);
+    changed = true;
+  }
+
+  if (!changed) return;
+  db.prepare(`
+    UPDATE user_balance
+    SET free_credits = ?,
+        paid_credits = ?,
+        monthly_credit_quota = ?,
+        credit_period = ?,
+        updated_at = ?
+    WHERE user_id = ?
+  `).run(
+    freeCredits,
+    paidCredits,
+    monthlyQuota,
+    creditPeriod,
+    nowIso(),
+    userId,
+  );
+}
+
+export function getUserBalance(userId) {
+  if (!userId) return null;
+  applyMonthlyCreditRollover(userId);
+  return readUserBalance(userId);
+}
+
+export function ensureUserBalance(userId, freeCredits = CREDITS_PER_IMAGE * 3) {
   const existing = db.prepare('SELECT user_id FROM user_balance WHERE user_id = ?').get(userId);
   if (existing) return getUserBalance(userId);
+  const initialCredits = Math.max(0, Math.floor(Number(freeCredits) || 0));
   db.prepare(`
-    INSERT INTO user_balance (user_id, free_credits, paid_credits, lifetime_generations, updated_at)
-    VALUES (?, ?, 0, 0, ?)
-  `).run(userId, freeCredits, nowIso());
+    INSERT INTO user_balance (
+      user_id, free_credits, paid_credits, lifetime_generations,
+      monthly_credit_quota, credit_period, credits_unit_version, updated_at
+    )
+    VALUES (?, ?, 0, 0, ?, ?, ?, ?)
+  `).run(
+    userId,
+    initialCredits,
+    initialCredits,
+    getBillingMonthKey(),
+    CREDIT_UNIT_VERSION,
+    nowIso(),
+  );
   return getUserBalance(userId);
 }
 
@@ -2656,13 +4012,13 @@ export function claimDailyLoginReward(userId, { grant = true } = {}) {
   const now = nowIso();
   const claim = db.transaction(() => {
     // Existing legacy accounts may not have a balance row yet. Do not grant
-    // the new 6-credit signup package; preserve their original 3-credit
-    // fallback, then add the daily reward.
-    ensureUserBalance(userId, 3);
+    // the new 6-image signup package; preserve their original 3-image
+    // fallback, then add the daily points reward.
+    ensureUserBalance(userId, CREDITS_PER_IMAGE * 3);
     const inserted = db.prepare(`
       INSERT OR IGNORE INTO user_daily_rewards (user_id, reward_date, credits, created_at)
       VALUES (?, ?, ?, ?)
-    `).run(userId, rewardDate, grant ? 1 : 0, now);
+    `).run(userId, rewardDate, grant ? CREDITS_PER_IMAGE : 0, now);
 
     if (inserted.changes === 0) {
       return { granted: false, credits: 0, rewardDate };
@@ -2672,10 +4028,12 @@ export function claimDailyLoginReward(userId, { grant = true } = {}) {
 
     db.prepare(`
       UPDATE user_balance
-      SET free_credits = free_credits + 1, updated_at = ?
+      SET free_credits = free_credits + ?,
+          monthly_credit_quota = monthly_credit_quota + ?,
+          updated_at = ?
       WHERE user_id = ?
-    `).run(now, userId);
-    return { granted: true, credits: 1, rewardDate };
+    `).run(CREDITS_PER_IMAGE, CREDITS_PER_IMAGE, now, userId);
+    return { granted: true, credits: CREDITS_PER_IMAGE, rewardDate };
   });
 
   return claim();
@@ -2687,27 +4045,124 @@ export function getTotalCredits(userId) {
   return bal.freeCredits + bal.paidCredits;
 }
 
-export function tryDeductCredit(userId) {
-  // Atomic: deduct the first available credit type, but only if at least one exists.
-  // Returns true if deduction succeeded, false if insufficient credits.
-  const now = nowIso();
-  let res = db.prepare(`
-    UPDATE user_balance
-    SET free_credits = free_credits - 1,
-        lifetime_generations = lifetime_generations + 1,
-        updated_at = ?
-    WHERE user_id = ? AND free_credits > 0
-  `).run(now, userId);
-  if (res.changes > 0) return true;
+function deductCreditsInTransaction(userId, amount, { countGeneration = true } = {}) {
+  const row = db.prepare(`
+    SELECT free_credits, paid_credits
+    FROM user_balance
+    WHERE user_id = ?
+  `).get(userId);
+  if (!row) return { deducted: false, amount: 0, freeCredits: 0, paidCredits: 0 };
 
-  res = db.prepare(`
+  const freeCredits = Math.max(0, Number(row.free_credits) || 0);
+  const paidCredits = Math.max(0, Number(row.paid_credits) || 0);
+  if (freeCredits + paidCredits < amount) {
+    return { deducted: false, amount: 0, freeCredits: 0, paidCredits: 0 };
+  }
+
+  const freeUsed = Math.min(freeCredits, amount);
+  const paidUsed = amount - freeUsed;
+  const now = nowIso();
+  db.prepare(`
     UPDATE user_balance
-    SET paid_credits = paid_credits - 1,
-        lifetime_generations = lifetime_generations + 1,
+    SET free_credits = free_credits - ?,
+        paid_credits = paid_credits - ?,
+        lifetime_generations = lifetime_generations + ?,
         updated_at = ?
-    WHERE user_id = ? AND paid_credits > 0
-  `).run(now, userId);
-  return res.changes > 0;
+    WHERE user_id = ?
+  `).run(freeUsed, paidUsed, countGeneration ? 1 : 0, now, userId);
+  return {
+    deducted: true,
+    amount,
+    freeCredits: freeUsed,
+    paidCredits: paidUsed,
+  };
+}
+
+export function consumeCredits(userId, amount, { countGeneration = true } = {}) {
+  const normalizedAmount = Math.floor(Number(amount));
+  if (!userId || !Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+    return { deducted: false, amount: 0, freeCredits: 0, paidCredits: 0 };
+  }
+  ensureUserBalance(userId, 0);
+  const tx = db.transaction(() => {
+    applyMonthlyCreditRollover(userId);
+    return deductCreditsInTransaction(userId, normalizedAmount, { countGeneration });
+  });
+  return tx();
+}
+
+export function tryDeductCredits(userId, amount) {
+  return consumeCredits(userId, amount).deducted;
+}
+
+export function tryDeductCredit(userId) {
+  return tryDeductCredits(userId, CREDITS_PER_IMAGE);
+}
+
+export function chargeVideoCredits({ userId, credits, chargeId = randomUUID() }) {
+  const normalizedAmount = Math.floor(Number(credits));
+  if (!userId || !Number.isFinite(normalizedAmount) || normalizedAmount <= 0) return null;
+  ensureUserBalance(userId, 0);
+  const tx = db.transaction(() => {
+    applyMonthlyCreditRollover(userId);
+    const deduction = deductCreditsInTransaction(userId, normalizedAmount, { countGeneration: false });
+    if (!deduction.deducted) return null;
+    db.prepare(`
+      INSERT INTO video_credit_charges (
+        id, user_id, credits, free_credits, paid_credits, status, created_at, refunded_at
+      ) VALUES (?, ?, ?, ?, ?, 'charged', ?, NULL)
+    `).run(
+      chargeId,
+      userId,
+      normalizedAmount,
+      deduction.freeCredits,
+      deduction.paidCredits,
+      nowIso(),
+    );
+    return {
+      chargeId,
+      credits: normalizedAmount,
+      freeCredits: deduction.freeCredits,
+      paidCredits: deduction.paidCredits,
+    };
+  });
+  return tx();
+}
+
+export function refundVideoCredits(chargeId) {
+  const normalizedChargeId = String(chargeId || '').trim();
+  if (!normalizedChargeId) return false;
+  const tx = db.transaction(() => {
+    const charge = db.prepare(`
+      SELECT user_id, free_credits, paid_credits, status
+      FROM video_credit_charges
+      WHERE id = ?
+      LIMIT 1
+    `).get(normalizedChargeId);
+    if (!charge || charge.status !== 'charged') return false;
+
+    ensureUserBalance(charge.user_id, 0);
+    const now = nowIso();
+    db.prepare(`
+      UPDATE user_balance
+      SET free_credits = free_credits + ?,
+          paid_credits = paid_credits + ?,
+          updated_at = ?
+      WHERE user_id = ?
+    `).run(
+      Math.max(0, Number(charge.free_credits) || 0),
+      Math.max(0, Number(charge.paid_credits) || 0),
+      now,
+      charge.user_id,
+    );
+    db.prepare(`
+      UPDATE video_credit_charges
+      SET status = 'refunded', refunded_at = ?
+      WHERE id = ? AND status = 'charged'
+    `).run(now, normalizedChargeId);
+    return true;
+  });
+  return tx();
 }
 
 export function deductCredit(userId) {
@@ -2717,21 +4172,41 @@ export function deductCredit(userId) {
 
 export function addCredits(userId, amount, type = 'paid') {
   if (!Number.isFinite(amount) || amount === 0) return getUserBalance(userId);
+  const normalizedAmount = Math.floor(Number(amount));
+  if (normalizedAmount <= 0) return getUserBalance(userId);
   ensureUserBalance(userId, 0);
+  applyMonthlyCreditRollover(userId);
   const now = nowIso();
 
   if (type === 'refund') {
-    // Refunds: cap negative amount so balance never goes below 0.
-    const refundAmt = Math.max(0, Math.min(Math.abs(amount), getTotalCredits(userId)));
+    // Refunds restore paid points without changing the month's issued quota.
+    const current = readUserBalance(userId);
+    const refundAmt = Math.max(0, Math.min(normalizedAmount, current?.paidCredits || 0));
     if (refundAmt > 0) {
-      db.prepare('UPDATE user_balance SET paid_credits = paid_credits - ?, updated_at = ? WHERE user_id = ?').run(refundAmt, now, userId);
+      db.prepare(`
+        UPDATE user_balance
+        SET paid_credits = paid_credits - ?, updated_at = ?
+        WHERE user_id = ?
+      `).run(refundAmt, now, userId);
     }
-  } else if (amount > 0) {
-    // Positive addition (paid or free).
+  } else if (normalizedAmount > 0) {
+    // Positive additions count toward the current month's quota.
     if (type === 'paid') {
-      db.prepare('UPDATE user_balance SET paid_credits = paid_credits + ?, updated_at = ? WHERE user_id = ?').run(amount, now, userId);
+      db.prepare(`
+        UPDATE user_balance
+        SET paid_credits = paid_credits + ?,
+            monthly_credit_quota = monthly_credit_quota + ?,
+            updated_at = ?
+        WHERE user_id = ?
+      `).run(normalizedAmount, normalizedAmount, now, userId);
     } else {
-      db.prepare('UPDATE user_balance SET free_credits = free_credits + ?, updated_at = ? WHERE user_id = ?').run(amount, now, userId);
+      db.prepare(`
+        UPDATE user_balance
+        SET free_credits = free_credits + ?,
+            monthly_credit_quota = monthly_credit_quota + ?,
+            updated_at = ?
+        WHERE user_id = ?
+      `).run(normalizedAmount, normalizedAmount, now, userId);
     }
   }
   return getUserBalance(userId);
@@ -2739,6 +4214,22 @@ export function addCredits(userId, amount, type = 'paid') {
 
 export function getSubscriptionByUserId(userId) {
   const row = db.prepare('SELECT * FROM subscriptions WHERE user_id = ? AND status = ? ORDER BY created_at DESC LIMIT 1').get(userId, 'active');
+  return row ? {
+    id: row.id,
+    userId: row.user_id,
+    plan: row.plan,
+    stripeSubscriptionId: row.stripe_subscription_id,
+    stripeCustomerId: row.stripe_customer_id,
+    status: row.status,
+    currentPeriodStart: row.current_period_start,
+    currentPeriodEnd: row.current_period_end,
+    createdAt: row.created_at,
+  } : null;
+}
+
+export function getSubscriptionByStripeId(stripeSubscriptionId) {
+  const row = db.prepare('SELECT * FROM subscriptions WHERE stripe_subscription_id = ? ORDER BY created_at DESC LIMIT 1')
+    .get(stripeSubscriptionId);
   return row ? {
     id: row.id,
     userId: row.user_id,
@@ -2775,9 +4266,159 @@ export function cancelSubscriptionByUserId(userId) {
 
 export function getUserBilling(userId) {
   if (!userId) return null;
-  const balance = ensureUserBalance(userId, 3);
+  const balance = ensureUserBalance(userId, CREDITS_PER_IMAGE * 3);
   const subscription = getSubscriptionByUserId(userId);
-  return { balance, subscription };
+  const user = db.prepare(`
+    SELECT domestic_plan, domestic_plan_redeemed_at
+    FROM users
+    WHERE id = ?
+  `).get(userId);
+  const domesticPlan = user?.domestic_plan
+    ? {
+        id: user.domestic_plan,
+        redeemedAt: user.domestic_plan_redeemed_at || null,
+      }
+    : null;
+  return { balance, subscription, domesticPlan };
+}
+
+const DOMESTIC_PLAN_RANK = {
+  starter_cny: 1,
+  standard_cny: 2,
+  premium_cny: 3,
+  luxury_cny: 4,
+  supreme_cny: 5,
+};
+
+export class RedeemCardError extends Error {
+  constructor(code, message) {
+    super(message);
+    this.code = code;
+  }
+}
+
+export function normalizeRedeemCode(code) {
+  return String(code || '').trim().replace(/[\s-]/g, '').toUpperCase();
+}
+
+export function hashRedeemCode(code) {
+  return createHash('sha256').update(normalizeRedeemCode(code)).digest('hex');
+}
+
+export function importRedeemCards(cards = []) {
+  const uniqueCards = new Map();
+  for (const card of Array.isArray(cards) ? cards : []) {
+    const code = normalizeRedeemCode(card?.code);
+    const planId = String(card?.planId || '').trim();
+    const credits = Number(card?.credits);
+    if (code.length < 8 || !DOMESTIC_PLAN_RANK[planId] || !Number.isInteger(credits) || credits <= 0) continue;
+    const codeHash = hashRedeemCode(code);
+    uniqueCards.set(codeHash, {
+      codeHash,
+      codeLast4: code.slice(-4),
+      planId,
+      credits,
+      source: String(card?.source || 'domestic').trim() || 'domestic',
+    });
+  }
+
+  const insert = db.prepare(`
+    INSERT OR IGNORE INTO redeem_cards (
+      id, code_hash, code_last4, plan_id, credits, status, redeemed_by,
+      redeemed_at, imported_at, source, credits_unit_version
+    ) VALUES (?, ?, ?, ?, ?, 'available', NULL, NULL, ?, ?, ?)
+  `);
+  const now = nowIso();
+  const addCards = db.transaction((items) => {
+    let imported = 0;
+    for (const card of items) {
+      const result = insert.run(
+        randomUUID(),
+        card.codeHash,
+        card.codeLast4,
+        card.planId,
+        card.credits,
+        now,
+        card.source,
+        CREDIT_UNIT_VERSION,
+      );
+      imported += result.changes;
+    }
+    return imported;
+  });
+
+  const imported = addCards([...uniqueCards.values()]);
+  return {
+    imported,
+    skipped: Math.max(0, (Array.isArray(cards) ? cards.length : 0) - imported),
+  };
+}
+
+export function redeemCard({ code, userId }) {
+  const normalizedCode = normalizeRedeemCode(code);
+  if (normalizedCode.length < 8) {
+    throw new RedeemCardError('INVALID', '卡密格式不正确');
+  }
+
+  const codeHash = hashRedeemCode(normalizedCode);
+  const redeem = db.transaction(() => {
+    const card = db.prepare(`
+      SELECT id, code_last4, plan_id, credits, status
+      FROM redeem_cards
+      WHERE code_hash = ?
+      LIMIT 1
+    `).get(codeHash);
+
+    if (!card) throw new RedeemCardError('INVALID', '卡密不存在');
+    if (card.status === 'redeemed') throw new RedeemCardError('USED', '卡密已被兑换');
+    if (card.status !== 'available') throw new RedeemCardError('DISABLED', '卡密已失效');
+
+    const user = db.prepare('SELECT id, domestic_plan FROM users WHERE id = ?').get(userId);
+    if (!user) throw new RedeemCardError('USER_NOT_FOUND', '用户不存在');
+
+    const currentRank = DOMESTIC_PLAN_RANK[user.domestic_plan] || 0;
+    const nextRank = DOMESTIC_PLAN_RANK[card.plan_id] || 0;
+    if (!nextRank || currentRank >= nextRank) {
+      throw new RedeemCardError('ALREADY_REDEEMED', '当前账户已有更高或相同套餐权益');
+    }
+
+    const now = nowIso();
+    const claim = db.prepare(`
+      UPDATE redeem_cards
+      SET status = 'redeemed', redeemed_by = ?, redeemed_at = ?
+      WHERE id = ? AND status = 'available'
+    `).run(userId, now, card.id);
+    if (claim.changes !== 1) throw new RedeemCardError('USED', '卡密已被兑换');
+
+    db.prepare(`
+      INSERT OR IGNORE INTO user_balance (
+        user_id, free_credits, paid_credits, lifetime_generations,
+        monthly_credit_quota, credit_period, credits_unit_version, updated_at
+      ) VALUES (?, 0, 0, 0, 0, ?, ?, ?)
+    `).run(userId, getBillingMonthKey(), CREDIT_UNIT_VERSION, now);
+    applyMonthlyCreditRollover(userId);
+    db.prepare(`
+      UPDATE user_balance
+      SET paid_credits = paid_credits + ?,
+          monthly_credit_quota = monthly_credit_quota + ?,
+          updated_at = ?
+      WHERE user_id = ?
+    `).run(card.credits, card.credits, now, userId);
+    db.prepare(`
+      UPDATE users
+      SET domestic_plan = ?, domestic_plan_redeemed_at = ?, domestic_redeem_card_id = ?
+      WHERE id = ?
+    `).run(card.plan_id, now, card.id, userId);
+
+    return {
+      planId: card.plan_id,
+      credits: card.credits,
+      imageCount: Math.floor(card.credits / CREDITS_PER_IMAGE),
+      cardLast4: card.code_last4,
+    };
+  });
+
+  return redeem();
 }
 
 // Stripe webhook: check if event already processed
@@ -3394,7 +5035,14 @@ export function getUserSessionByToken(token) {
 }
 
 export function updateUserSessionExpiryByToken(token, expiresAt) {
-  db.prepare('UPDATE user_sessions SET expires_at = ? WHERE token = ?').run(expiresAt, token);
+  try {
+    db.prepare('UPDATE user_sessions SET expires_at = ? WHERE token = ?').run(expiresAt, token);
+  } catch (error) {
+    // Session refresh is best-effort; a short SQLite write lock must not make
+    // an otherwise valid authenticated request fail.
+    if (error?.code === 'SQLITE_BUSY' || error?.code === 'SQLITE_BUSY_SNAPSHOT') return;
+    throw error;
+  }
 }
 
 export function deleteUserSessionByToken(token) {
@@ -3420,11 +5068,12 @@ export function cleanExpiredUserSessions() {
 export function createEditorBatch({ kind = 'editor_showcase', plannedCount = 0, details = {} } = {}) {
   const id = randomUUID();
   const now = nowIso();
+  const safeDetails = sanitizePublicMetadata(details);
   db.prepare(`
     INSERT INTO editor_batches (id, kind, status, planned_count, queued_count, succeeded_count, failed_count, details_json, created_at, updated_at)
     VALUES (?, ?, 'queued', ?, 0, 0, 0, ?, ?, ?)
-  `).run(id, kind, Number(plannedCount), JSON.stringify(details), now, now);
-  return { id, kind, status: 'queued', plannedCount, queuedCount: 0, succeededCount: 0, failedCount: 0, details, createdAt: now, updatedAt: now };
+  `).run(id, kind, Number(plannedCount), JSON.stringify(safeDetails), now, now);
+  return { id, kind, status: 'queued', plannedCount, queuedCount: 0, succeededCount: 0, failedCount: 0, details: safeDetails, createdAt: now, updatedAt: now };
 }
 
 export function getEditorBatchById(id) {
@@ -3441,7 +5090,7 @@ export function touchEditorBatch(id, { queuedCount, succeededCount, failedCount,
   const newSucceeded = succeededCount !== undefined ? Number(succeededCount) : batch.succeeded_count;
   const newFailed = failedCount !== undefined ? Number(failedCount) : batch.failed_count;
   const newStatus = status || batch.status;
-  const newDetails = details !== undefined ? JSON.stringify(details) : batch.details_json;
+  const newDetails = details !== undefined ? JSON.stringify(sanitizePublicMetadata(details)) : batch.details_json;
 
   db.prepare(`
     UPDATE editor_batches
@@ -3464,7 +5113,7 @@ function rowToEditorBatch(row) {
     queuedCount: Number(row.queued_count || 0),
     succeededCount: Number(row.succeeded_count || 0),
     failedCount: Number(row.failed_count || 0),
-    details,
+    details: sanitizePublicMetadata(details),
     startedAt: row.started_at,
     finishedAt: row.finished_at,
     createdAt: row.created_at,
@@ -3552,8 +5201,8 @@ function rowToEditorItem(row) {
     step2JobId: row.step2_job_id || null,
     step1Status: row.step1_status,
     step2Status: row.step2_status,
-    resultBaseUrl: row.result_base_url || null,
-    resultEditedUrl: row.result_edited_url || null,
+    resultBaseUrl: normalizePublicMediaUrl(row.result_base_url || '', 'image') || null,
+    resultEditedUrl: normalizePublicMediaUrl(row.result_edited_url || '', 'image') || null,
     publishedToPrompts: !!row.published_to_prompts,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

@@ -1,7 +1,16 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&family=JetBrains+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;600;700;800&display=swap');
-@import './variables.css';
-@import './form-controls.css';
-@import './themes.css';
+/* Webfonts are loaded asynchronously via <link> in index.html (preconnect + media=print swap).
+   Font-family declarations here fall back to system fonts until/unless webfonts arrive,
+   so a blocked fonts.googleapis.com request never blocks first paint. */
+/* Base tokens (spacing / layout) */
+@import "./variables.css";
+/* Theme tokens: --background / --foreground / --brand / --radius / shadows for both themes */
+@import "./theme-tokens.css";
+@import "./form-controls.css";
+/* Component-level theme overrides */
+@import "./themes.css";
+
+
+
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -43,11 +52,11 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border);
-  border-radius: 100px;
+  background: var(--border);
+  border-radius: var(--radius-full);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #C8BDB4;
+  background: color-mix(in oklab, var(--foreground) 25%, transparent);
 }
 
 a {
@@ -138,9 +147,30 @@ img {
 
 /* ── Focus visible ───────────────────────────────────────── */
 :focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 3px;
-  border-radius: 4px;
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+.route-loading {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  background: var(--background);
+}
+
+.route-loading::after {
+  width: 22px;
+  height: 22px;
+  content: '';
+  border: 2px solid color-mix(in oklab, var(--foreground) 16%, transparent);
+  border-top-color: var(--brand);
+  border-radius: 50%;
+  animation: route-loading-spin 700ms linear infinite;
+}
+
+@keyframes route-loading-spin {
+  to { transform: rotate(360deg); }
 }
 
 /* ── RTL (right-to-left) support ─────────────────────────── */

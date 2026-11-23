@@ -33,7 +33,15 @@ export default function Auth() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, register, googleLogin, forgotPassword, resetPassword } = useApp();
+  const {
+    login,
+    register,
+    googleLogin,
+    forgotPassword,
+    resetPassword,
+    currentUser,
+    hasCompletedOnboarding,
+  } = useApp();
   const [searchParams] = useSearchParams();
   const [mode, setMode] = useState('login');
   const [username, setUsername] = useState('');
@@ -171,7 +179,7 @@ export default function Auth() {
       navigate(from, { replace: true });
       return;
     }
-    const onboardingDone = localStorage.getItem('pf_onboarding_done') === 'true';
+    const onboardingDone = hasCompletedOnboarding || currentUser?.hasCompletedOnboarding;
     navigate(onboardingDone ? '/' : '/onboarding');
   };
 

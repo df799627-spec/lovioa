@@ -165,7 +165,6 @@ export default function AdminModerationTab() {
                   <span className="admin-mod-card__time">{formatTimeAgo(item.createdAt)}</span>
                 </div>
                 <div className="admin-mod-card__meta">
-                  <span className="admin-mod-card__model">{item.providerName || 'n/a'}</span>
                   <span className="admin-mod-card__model">{item.reason || '—'}</span>
                 </div>
                 <div className="admin-mod-card__actions">

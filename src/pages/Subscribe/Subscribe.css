@@ -1,20 +1,23 @@
 .subscribe-page {
   min-height: calc(100vh - var(--nav-height));
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   padding: var(--space-10) var(--space-6);
   padding-top: calc(var(--nav-height) + var(--space-10));
+  background:
+    radial-gradient(circle at 8% 8%, color-mix(in oklab, var(--brand) 8%, transparent), transparent 32rem),
+    linear-gradient(180deg, color-mix(in oklab, var(--background) 92%, var(--brand)), var(--background));
 }
 
 .subscribe-page__inner {
   width: 100%;
-  max-width: 860px;
+  max-width: 1120px;
   margin: 0 auto;
 }
 
 .subscribe-page__header {
   text-align: center;
-  margin-bottom: var(--space-10);
+  margin-bottom: var(--space-8);
 }
 
 .subscribe-page__eyebrow {
@@ -31,9 +34,10 @@
 }
 
 .subscribe-page__title {
-  font-family: var(--font-display);
-  font-size: 2.5rem;
-  font-weight: 600;
+  font-family: var(--font-body);
+  font-size: clamp(2.2rem, 4vw, 3.4rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
   color: var(--color-text);
   margin-bottom: var(--space-3);
 }
@@ -41,6 +45,302 @@
 .subscribe-page__subtitle {
   font-size: 1.05rem;
   color: var(--color-secondary);
+}
+
+/* ── Account summary ───────────────────────────────── */
+.subscribe-page__account {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(180px, 0.8fr) auto;
+  gap: var(--space-6);
+  align-items: center;
+  padding: 20px 24px;
+  margin-bottom: var(--space-5);
+  border: 1px solid color-mix(in oklab, var(--color-accent) 28%, var(--color-border));
+  border-radius: 18px;
+  background:
+    linear-gradient(115deg, color-mix(in oklab, var(--color-accent) 8%, var(--color-surface)), var(--color-surface));
+  box-shadow: 0 10px 28px color-mix(in oklab, var(--brand) 8%, transparent);
+}
+
+.subscribe-page__account-kicker {
+  color: var(--color-secondary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.subscribe-page__account-name {
+  margin-top: 4px;
+  color: var(--color-text);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.subscribe-page__account-status,
+.subscribe-page__account-note {
+  margin-top: 3px;
+  color: var(--color-secondary);
+  font-size: 0.78rem;
+}
+
+.subscribe-page__account-balance {
+  padding-left: var(--space-6);
+  border-left: 1px solid var(--color-border);
+}
+
+.subscribe-page__account-credits {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  margin-top: 4px;
+  color: var(--color-accent);
+  font-size: 1.55rem;
+  font-weight: 750;
+}
+
+.subscribe-page__account-credits span {
+  color: var(--color-secondary);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.subscribe-page__account-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.subscribe-page__account-link,
+.subscribe-page__manage-btn {
+  border: 0;
+  background: transparent;
+  color: var(--color-accent);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.subscribe-page__account-link:hover,
+.subscribe-page__manage-btn:hover:not(:disabled) {
+  color: var(--color-accent-hover);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.subscribe-page__manage-btn:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+/* ── Usage rules ───────────────────────────────────── */
+.subscribe-page__usage {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  margin-bottom: var(--space-8);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-border);
+}
+
+.subscribe-page__usage-item {
+  display: flex;
+  gap: 12px;
+  min-height: 86px;
+  padding: 18px 20px;
+  background: color-mix(in oklab, var(--color-surface) 96%, var(--brand));
+}
+
+.subscribe-page__usage-icon {
+  display: grid;
+  flex: 0 0 30px;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.subscribe-page__usage-item strong,
+.subscribe-page__usage-item span {
+  display: block;
+}
+
+.subscribe-page__usage-item strong {
+  color: var(--color-text);
+  font-size: 0.84rem;
+}
+
+.subscribe-page__usage-item div > span {
+  margin-top: 4px;
+  color: var(--color-secondary);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+/* ── Video pricing ─────────────────────────────────── */
+.subscribe-page__video-pricing {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: var(--space-8);
+  padding: 30px;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 90% 0%, color-mix(in oklab, var(--brand) 24%, transparent), transparent 28rem),
+    linear-gradient(135deg, var(--primary), color-mix(in oklab, var(--primary) 82%, var(--brand)));
+  color: var(--primary-foreground);
+  box-shadow: 0 16px 42px color-mix(in oklab, var(--primary) 18%, transparent);
+}
+
+.subscribe-page__video-pricing::after {
+  position: absolute;
+  top: -110px;
+  right: -90px;
+  width: 260px;
+  height: 260px;
+  border: 1px solid color-mix(in oklab, var(--primary-foreground) 18%, transparent);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 18px color-mix(in oklab, var(--primary-foreground) 5%, transparent),
+    0 0 0 38px color-mix(in oklab, var(--primary-foreground) 3%, transparent);
+  content: '';
+  pointer-events: none;
+}
+
+.subscribe-page__video-pricing-header {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+  gap: var(--space-8);
+  align-items: end;
+  margin-bottom: 24px;
+}
+
+.subscribe-page__video-eyebrow {
+  color: color-mix(in oklab, var(--brand) 72%, white);
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.14em;
+}
+
+.subscribe-page__video-pricing h2 {
+  max-width: 520px;
+  margin: 8px 0 0;
+  color: var(--primary-foreground);
+  font-size: clamp(1.45rem, 2.8vw, 2.2rem);
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+}
+
+.subscribe-page__video-pricing-header p {
+  margin: 0;
+  color: color-mix(in oklab, var(--primary-foreground) 70%, transparent);
+  font-size: 0.86rem;
+  line-height: 1.65;
+}
+
+.subscribe-page__video-table-wrap {
+  position: relative;
+  z-index: 1;
+  overflow-x: auto;
+  border: 1px solid color-mix(in oklab, var(--primary-foreground) 12%, transparent);
+  border-radius: 16px;
+}
+
+.subscribe-page__video-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.subscribe-page__video-table th {
+  padding: 13px 16px;
+  border-bottom: 1px solid color-mix(in oklab, var(--primary-foreground) 12%, transparent);
+  color: color-mix(in oklab, var(--primary-foreground) 54%, transparent);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.subscribe-page__video-table td {
+  padding: 16px;
+  border-bottom: 1px solid color-mix(in oklab, var(--primary-foreground) 9%, transparent);
+  color: color-mix(in oklab, var(--primary-foreground) 72%, transparent);
+  font-size: 0.8rem;
+  vertical-align: middle;
+}
+
+.subscribe-page__video-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.subscribe-page__video-table tbody tr:hover {
+  background: color-mix(in oklab, var(--primary-foreground) 5%, transparent);
+}
+
+.subscribe-page__video-table td strong,
+.subscribe-page__video-table td span,
+.subscribe-page__video-table td small {
+  display: block;
+}
+
+.subscribe-page__video-table td strong {
+  color: var(--primary-foreground);
+  font-size: 0.98rem;
+}
+
+.subscribe-page__video-table td span {
+  margin-top: 3px;
+  color: color-mix(in oklab, var(--primary-foreground) 52%, transparent);
+  font-size: 0.72rem;
+}
+
+.subscribe-page__video-table td small {
+  margin-top: 4px;
+  color: color-mix(in oklab, var(--primary-foreground) 42%, transparent);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+}
+
+.subscribe-page__video-notes {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.subscribe-page__video-notes > div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in oklab, var(--primary-foreground) 12%, transparent);
+  border-radius: 13px;
+}
+
+.subscribe-page__video-notes strong {
+  color: var(--primary-foreground);
+  font-size: 0.8rem;
+}
+
+.subscribe-page__video-notes span {
+  color: color-mix(in oklab, var(--primary-foreground) 58%, transparent);
+  font-size: 0.72rem;
+  line-height: 1.5;
 }
 
 /* ── Cycle toggle ────────────────────────────────────── */
@@ -76,7 +376,7 @@
 
 .subscribe-page__cycle-btn.active {
   background: var(--color-accent);
-  color: white;
+  color: var(--brand-foreground);
 }
 
 .subscribe-page__cycle-btn:not(.active):hover {
@@ -87,7 +387,7 @@
   display: inline-block;
   font-size: 10px;
   font-weight: 600;
-  background: rgba(181, 98, 42, 0.15);
+  background: color-mix(in oklab, var(--brand) 15%, transparent);
   color: var(--color-accent);
   padding: 2px 8px;
   border-radius: 20px;
@@ -97,14 +397,15 @@
 
 .subscribe-page__cycle-btn.active .subscribe-page__cycle-badge {
   background: rgba(255, 255, 255, 0.2);
-  color: white;
+  color: var(--brand-foreground);
 }
 
 /* ── Plans ─────────────────────────────────────────── */
 .subscribe-page__plans {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-5);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  align-items: stretch;
   margin-bottom: var(--space-8);
 }
 
@@ -112,19 +413,50 @@
   .subscribe-page__plans {
     grid-template-columns: 1fr;
   }
+
+  .subscribe-page__account,
+  .subscribe-page__usage {
+    grid-template-columns: 1fr;
+  }
+
+  .subscribe-page__account-balance {
+    padding-top: var(--space-4);
+    padding-left: 0;
+    border-top: 1px solid var(--color-border);
+    border-left: 0;
+  }
+
+  .subscribe-page__account-actions {
+    align-items: flex-start;
+  }
+
+  .subscribe-page__usage-item {
+    min-height: auto;
+  }
+
+  .subscribe-page__video-pricing-header {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+
+  .subscribe-page__video-notes {
+    grid-template-columns: 1fr;
+  }
 }
 
 .subscribe-card {
   position: relative;
+  display: flex;
+  flex-direction: column;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 20px;
-  padding: 32px 28px 28px;
+  padding: 28px 24px 24px;
   cursor: pointer;
   /* Layered inner shadow for depth */
   box-shadow:
-    0 1px 3px rgba(28, 25, 23, 0.04),
-    0 4px 12px rgba(28, 25, 23, 0.05),
+    0 1px 3px var(--shadow-sm),
+    0 4px 12px color-mix(in oklab, var(--foreground) 5%, transparent),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
   transition:
     border-color 0.25s var(--transition-base),
@@ -137,8 +469,8 @@
 .subscribe-card:hover {
   border-color: color-mix(in srgb, var(--color-accent) 50%, var(--color-border));
   box-shadow:
-    0 8px 32px rgba(28, 25, 23, 0.10),
-    0 2px 8px rgba(28, 25, 23, 0.06),
+    0 8px 32px var(--shadow-md),
+    0 2px 8px var(--shadow-sm),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
   transform: translateY(-4px);
 }
@@ -148,7 +480,7 @@
   box-shadow:
     0 0 0 1px var(--color-accent),
     0 0 0 4px var(--color-accent-glow),
-    0 12px 40px rgba(181, 98, 42, 0.18),
+    0 12px 40px color-mix(in oklab, var(--brand) 18%, transparent),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
@@ -156,7 +488,7 @@
   box-shadow:
     0 0 0 1px var(--color-accent),
     0 0 0 6px var(--color-accent-glow),
-    0 16px 48px rgba(181, 98, 42, 0.22),
+    0 16px 48px color-mix(in oklab, var(--brand) 22%, transparent),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
@@ -166,7 +498,7 @@
   left: 50%;
   transform: translateX(-50%);
   background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-hover) 100%);
-  color: white;
+  color: var(--brand-foreground);
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
@@ -174,8 +506,23 @@
   padding: 5px 14px 4px;
   border-radius: 20px;
   /* Subtle top light reflection */
-  box-shadow: 0 2px 8px rgba(181, 98, 42, 0.35);
+  box-shadow: 0 2px 8px color-mix(in oklab, var(--brand) 35%, transparent);
   white-space: nowrap;
+}
+
+.subscribe-card__current {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  z-index: 1;
+  padding: 5px 9px;
+  border: 1px solid color-mix(in oklab, var(--color-accent) 28%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-accent) 10%, var(--color-surface));
+  color: var(--color-accent);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .subscribe-card__cover {
@@ -207,7 +554,7 @@
   border: 1px solid rgba(255, 255, 255, 0.55);
   border-radius: 999px;
   background: rgba(42, 28, 18, 0.58);
-  color: #fff;
+  color: var(--brand-foreground);
   font-size: 0.72rem;
   font-weight: 600;
   backdrop-filter: blur(8px);
@@ -242,7 +589,7 @@
 }
 
 .subscribe-card__amount {
-  font-size: 2.8rem;
+  font-size: 2.65rem;
   font-weight: 700;
   color: var(--color-text);
   line-height: 1;
@@ -281,11 +628,85 @@
   margin-top: 4px;
 }
 
+.subscribe-card__allocation {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.subscribe-card__allocation > div {
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--color-surface) 92%, var(--brand));
+}
+
+.subscribe-card__allocation strong,
+.subscribe-card__allocation span {
+  display: block;
+}
+
+.subscribe-card__allocation strong {
+  color: var(--color-text);
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+}
+
+.subscribe-card__allocation span {
+  margin-top: 3px;
+  color: var(--color-secondary);
+  font-size: 0.72rem;
+}
+
+.subscribe-card__credits-note {
+  margin-top: 5px;
+  font-size: 0.72rem;
+  color: var(--color-secondary);
+}
+
+.subscribe-card__video-budget {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 13px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.subscribe-card__video-budget-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.subscribe-card__video-budget-head > span {
+  color: color-mix(in oklab, var(--primary-foreground) 62%, transparent);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.subscribe-card__video-budget-head strong {
+  color: var(--primary-foreground);
+  font-size: 1rem;
+}
+
+.subscribe-card__video-budget > span {
+  display: block;
+  margin-top: 5px;
+  color: color-mix(in oklab, var(--primary-foreground) 58%, transparent);
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
 .subscribe-card__benefits {
   list-style: none;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex: 1;
   margin-bottom: 24px;
   padding-left: 2px;
 }
@@ -324,17 +745,17 @@
 
 .subscribe-card__select-btn:hover {
   background: var(--color-accent);
-  color: white;
+  color: var(--brand-foreground);
   border-color: var(--color-accent);
-  box-shadow: 0 4px 14px rgba(181, 98, 42, 0.30);
+  box-shadow: 0 4px 14px color-mix(in oklab, var(--brand) 30%, transparent);
   transform: translateY(-1px);
 }
 
 .subscribe-card__select-btn.active {
   background: var(--color-accent);
-  color: white;
+  color: var(--brand-foreground);
   border-color: var(--color-accent);
-  box-shadow: 0 4px 14px rgba(181, 98, 42, 0.30);
+  box-shadow: 0 4px 14px color-mix(in oklab, var(--brand) 30%, transparent);
 }
 
 /* ── Error ─────────────────────────────────────────── */
@@ -343,10 +764,10 @@
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  background: color-mix(in oklab, var(--destructive) 8%, transparent);
+  border: 1px solid color-mix(in oklab, var(--destructive) 25%, transparent);
   border-radius: var(--radius-md);
-  color: #dc2626;
+  color: var(--destructive);
   font-size: 0.85rem;
   margin-bottom: var(--space-5);
 }
@@ -367,7 +788,7 @@
   gap: var(--space-2);
   padding: 16px 48px;
   background: var(--color-accent);
-  color: white;
+  color: var(--brand-foreground);
   border: none;
   border-radius: var(--radius-md);
   font-size: 1rem;
@@ -395,7 +816,7 @@
   width: 16px;
   height: 16px;
   border: 2px solid rgba(255,255,255,0.3);
-  border-top-color: white;
+  border-top-color: var(--brand-foreground);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -408,6 +829,24 @@
   font-size: 0.8rem;
   color: var(--color-secondary);
   text-align: center;
+}
+
+.subscribe-page__payment-hint {
+  font-size: 0.75rem;
+  color: var(--color-secondary);
+  text-align: center;
+}
+
+.subscribe-page__redeem-link {
+  color: var(--color-accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.subscribe-page__redeem-link:hover {
+  color: var(--color-accent-hover);
 }
 
 /* ── Mobile ─────────────────────────────────────────── */
@@ -427,5 +866,10 @@
 
   .subscribe-card__amount {
     font-size: 2.5rem;
+  }
+
+  .subscribe-page__video-pricing {
+    padding: 20px 16px;
+    border-radius: 18px;
   }
 }

@@ -71,6 +71,23 @@ cd server && npm start
 
 The Vite development server proxies API requests to the local backend. Runtime databases, uploads, generated media, logs, browser artifacts, and local environment files are intentionally excluded from version control.
 
+### Connect to Production
+
+From the repository root:
+
+```bash
+# Check SSH access and service status
+./connect-production.sh --check
+
+# Open a production shell
+./connect-production.sh --shell
+
+# Run one command on the production server
+./connect-production.sh --exec "systemctl status promptfolio.service --no-pager"
+```
+
+The helper uses `root@207.57.128.137` on port `2217` by default and automatically uses `~/.ssh/lovioa-production` when that key exists. Override the target with `PRODUCTION_HOST`, `PRODUCTION_PORT`, and `PRODUCTION_USER`. It does not store passwords or private keys in the repository.
+
 ## Configuration
 
 The minimum server-side generation configuration is:

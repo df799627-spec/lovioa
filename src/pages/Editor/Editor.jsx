@@ -7,7 +7,11 @@ import { useApp } from '../../context/AppContext';
 import { api } from '../../services/api';
 import { trackAction } from '../../services/analytics';
 import { normalizePromptCategory } from '../../utils/promptCategory';
-import { DEFAULT_IMAGE_MODEL, getImageModelConfig, IMAGE_MODEL_OPTIONS } from '../../config/imageModels';
+import {
+  DEFAULT_IMAGE_MODEL,
+  getImageModelConfig,
+  VISIBLE_IMAGE_MODEL_OPTIONS,
+} from '../../config/imageModels';
 import './Editor.css';
 
 const POLL_INTERVAL_MS = 2000;
@@ -70,7 +74,7 @@ export default function Editor() {
   const isGeneratingRef = useRef(false);
   const modelConfig1 = getImageModelConfig(model1);
   const modelConfig2 = getImageModelConfig(model2);
-  const editorModelOptions2 = IMAGE_MODEL_OPTIONS.filter(option => option.supportsEdit);
+  const editorModelOptions2 = VISIBLE_IMAGE_MODEL_OPTIONS.filter(option => option.supportsEdit);
 
   // Sync locale defaults
   useEffect(() => {
@@ -84,7 +88,7 @@ export default function Editor() {
   }, [t]);
 
   useEffect(() => {
-    setModel1(prev => IMAGE_MODEL_OPTIONS.some(o => o.value === prev) ? prev : DEFAULT_IMAGE_MODEL);
+    setModel1(prev => VISIBLE_IMAGE_MODEL_OPTIONS.some(o => o.value === prev) ? prev : DEFAULT_IMAGE_MODEL);
     setModel2(prev => editorModelOptions2.some(o => o.value === prev) ? prev : editorModelOptions2[0].value);
   }, []);
   useEffect(() => {
@@ -181,10 +185,10 @@ export default function Editor() {
             setResult1({ imageUrl, jobId: id });
             setStatus1('success');
             trackAction('act_editor_generate_success', { mode: 'text', category: inferredCategory, model: model1 });
-            addToHistory({ id: `${id}-h`, imageUrl, prompt: prompt1.trim(), model: model1, mode: 'text', createdAt: new Date().toISOString() });
+            addToHistory({ id: `${id}-h`, jobId: id, imageUrl, prompt: prompt1.trim(), model: model1, mode: 'text', createdAt: new Date().toISOString() });
           } else if (['failed', 'error', 'cancelled'].includes(currentStatus)) {
             clearInterval(pollId1Ref.current); pollId1Ref.current = null;
-            setErrorMsg1(jobState?.lastError || t('editor.errorJobFailed')); setStatus1('error');
+            setErrorMsg1(t('editor.errorJobFailed')); setStatus1('error');
             trackAction('act_editor_generate_fail', { mode: 'text', category: inferredCategory, model: model1, reason: 'job_failed' });
           }
         } catch (pollErr) {
@@ -284,10 +288,10 @@ export default function Editor() {
             setResult2({ imageUrl, jobId: id });
             setStatus2('success');
             trackAction('act_editor_generate_success', { mode: 'edit', category: inferredCategory, model: model2 });
-            addToHistory({ id: `${id}-h`, imageUrl, prompt: effectivePrompt, model: model2, mode: 'edit', createdAt: new Date().toISOString() });
+            addToHistory({ id: `${id}-h`, jobId: id, imageUrl, prompt: effectivePrompt, model: model2, mode: 'edit', createdAt: new Date().toISOString() });
           } else if (['failed', 'error', 'cancelled'].includes(currentStatus)) {
             clearInterval(pollId2Ref.current); pollId2Ref.current = null;
-            setErrorMsg2(jobState?.lastError || t('editor.errorJobFailed')); setStatus2('error');
+            setErrorMsg2(t('editor.errorJobFailed')); setStatus2('error');
             trackAction('act_editor_generate_fail', { mode: 'edit', category: inferredCategory, model: model2, reason: 'job_failed' });
           }
         } catch (pollErr) {
@@ -463,8 +467,10 @@ export default function Editor() {
                           onChange={e => setModel1(e.target.value)}
                           disabled={isGenerating1}
                         >
-                          {IMAGE_MODEL_OPTIONS.map(opt => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          {VISIBLE_IMAGE_MODEL_OPTIONS.map(option => (
+                            <option key={option.value} value={option.value}>
+                              {option.label} · {option.capability}
+                            </option>
                           ))}
                         </select>
                       </div>

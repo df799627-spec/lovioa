@@ -519,7 +519,7 @@
     "cancelDesc": "No commitment — cancel whenever you want",
     "privacy": "Privacy First",
     "privacyDesc": "We never store your payment details",
-    "creditsRollover": "Unused credits roll over to next month"
+    "creditsRollover": "Monthly settlement: up to 30% of last month's allowance carries over"
   },
   "balance": {
     "title": "Credits & Billing",
@@ -528,15 +528,15 @@
     "refresh": "Refresh balance",
     "lastUpdated": "Last updated",
     "topUp": "Top Up Credits",
-    "topUpDesc": "Choose a package to buy image credits. Credits never expire.",
+    "topUpDesc": "Choose a package to buy credits. Each image uses 5 credits.",
     "orEnterAmount": "Or enter a custom amount",
     "apply": "Apply",
     "addCredits": "Add Credits — ",
     "processing": "Processing...",
     "howWorks": "How It Works",
     "howWorksDesc": "Credits are consumed with each image generation. Balance is checked before each job.",
-    "noExpiry": "No Expiry",
-    "noExpiryDesc": "Your credits never expire — use them whenever you need.",
+    "noExpiry": "Monthly Settlement",
+    "noExpiryDesc": "Up to 30% of last month's allowance carries over; if less remains, the full remainder is kept.",
     "topUpFailed": "Failed to initiate top-up"
   },
   "billing": {

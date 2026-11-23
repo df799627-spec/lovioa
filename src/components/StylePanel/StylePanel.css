@@ -178,8 +178,8 @@
   right: var(--space-2);
   width: 28px;
   height: 28px;
-  background: rgba(28, 25, 23, 0.75);
-  color: white;
+  background: color-mix(in oklab, var(--foreground) 75%, transparent);
+  color: var(--background);
   border: none;
   border-radius: var(--radius-full);
   display: flex;
@@ -190,7 +190,7 @@
 }
 
 .style-panel__ref-remove:hover {
-  background: rgba(28, 25, 23, 0.95);
+  background: color-mix(in oklab, var(--foreground) 95%, transparent);
 }
 
 .style-panel__ref-badge {
@@ -201,8 +201,8 @@
   align-items: center;
   gap: 5px;
   padding: 4px 10px;
-  background: rgba(28, 25, 23, 0.75);
-  color: white;
+  background: color-mix(in oklab, var(--foreground) 75%, transparent);
+  color: var(--background);
   font-size: 0.72rem;
   font-weight: 500;
   border-radius: var(--radius-full);
@@ -309,7 +309,7 @@
   gap: var(--space-2);
   padding: var(--space-4);
   background: var(--color-accent);
-  color: white;
+  color: var(--brand-foreground);
   font-size: 0.9rem;
   font-weight: 500;
   border-radius: var(--radius-full);
@@ -375,7 +375,7 @@
     left: 0;
     right: 0;
     margin-top: var(--space-3);
-    box-shadow: 0 4px 24px rgba(181, 98, 42, 0.35);
+    box-shadow: 0 4px 24px color-mix(in oklab, var(--brand) 35%, transparent);
     z-index: 10;
   }
 }

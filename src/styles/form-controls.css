@@ -229,13 +229,13 @@ input[type="range"]::-webkit-slider-thumb {
   background: var(--color-accent);
   cursor: grab;
   border: 2px solid var(--color-surface);
-  box-shadow: 0 1px 4px rgba(28, 25, 23, 0.2);
+  box-shadow: 0 1px 4px var(--shadow-xl);
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
   transform: scale(1.15);
-  box-shadow: 0 2px 8px rgba(28, 25, 23, 0.25);
+  box-shadow: 0 2px 8px color-mix(in oklab, var(--foreground) 25%, transparent);
 }
 
 input[type="range"]::-webkit-slider-thumb:active {
@@ -251,7 +251,7 @@ input[type="range"]::-moz-range-thumb {
   background: var(--color-accent);
   cursor: grab;
   border: 2px solid var(--color-surface);
-  box-shadow: 0 1px 4px rgba(28, 25, 23, 0.2);
+  box-shadow: 0 1px 4px var(--shadow-xl);
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
@@ -300,7 +300,7 @@ input[type="checkbox"]:checked::after {
   left: 5px;
   width: 5px;
   height: 9px;
-  border: 2px solid white;
+  border: 2px solid var(--brand-foreground);
   border-top: none;
   border-left: none;
   transform: rotate(45deg);

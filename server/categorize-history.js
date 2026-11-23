@@ -11,6 +11,7 @@
 import Database from 'better-sqlite3';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { inferCategoryAndTags as classifyPrompt } from './services/promptTaxonomy.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_FILE   = join(__dirname, 'data/lovioa.db');
@@ -57,24 +58,7 @@ function countKwMatches(text, keywords) {
 }
 
 function inferCategory(promptText) {
-  const t = promptText || '';
-
-  const portraitScore   = countKwMatches(t, PORTRAIT_KW);
-  const editorialScore  = countKwMatches(t, EDITORIAL_KW);
-  const fashionScore    = countKwMatches(t, FASHION_KW) + countKwMatches(t, PRODUCT_KW);
-  const landscapeScore  = countKwMatches(t, LANDSCAPE_KW) + countKwMatches(t, FOOD_KW) + countKwMatches(t, ARCH_KW);
-  const streetScore     = countKwMatches(t, STREET_KW);
-  const abstractScore   = countKwMatches(t, ABSTRACT_KW);
-
-  const best = Math.max(portraitScore, editorialScore, fashionScore, landscapeScore, streetScore, abstractScore);
-  if (best === 0) return 'Abstract';
-
-  if (portraitScore  === best) return 'Portrait';
-  if (landscapeScore === best) return 'Landscape';
-  if (fashionScore   === best) return 'Fashion';
-  if (editorialScore === best) return 'Editorial';
-  if (streetScore    === best) return 'Street';
-  return 'Abstract';
+  return classifyPrompt(promptText).category;
 }
 
 // ─── Step 1: Add category column if missing ───────────────────────────────────

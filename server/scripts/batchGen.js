@@ -12,14 +12,14 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = join(__dirname, '..', 'uploads');
 const DB_FILE = join(__dirname, '..', 'data/lovioa.db');
 
-const BASE_URL = process.env.OPENAI_API_BASE_URL || process.env.VITE_OPENAI_API_BASE_URL || 'https://api.openai.com/v1';
-const API_KEY = process.env.OPENAI_API_KEY || process.env.VITE_OPENAI_API_KEY || '';
+const BASE_URL = process.env.OPENAI_API_BASE_URL || 'https://api.openai.com/v1';
+const API_KEY = process.env.OPENAI_API_KEY || '';
 
 const CONCURRENCY = 1;
 const DELAY_BETWEEN_BATCHES_MS = 8000;
 
 if (!API_KEY) {
-  console.error('Missing OPENAI_API_KEY (or legacy VITE_OPENAI_API_KEY)');
+  console.error('Missing OPENAI_API_KEY');
   process.exit(1);
 }
 

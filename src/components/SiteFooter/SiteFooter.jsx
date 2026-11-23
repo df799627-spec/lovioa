@@ -20,6 +20,7 @@ export default function SiteFooter() {
           <div className="site-footer__col">
             <div className="site-footer__col-title">{t('footer.links.pricing')}</div>
             <Link to="/subscribe" className="site-footer__link">{t('nav.subscribe')}</Link>
+            <Link to="/redeem" className="site-footer__link">{t('nav.redeem')}</Link>
           </div>
 
           <div className="site-footer__col">
@@ -44,4 +45,3 @@ export default function SiteFooter() {
     </footer>
   );
 }
-

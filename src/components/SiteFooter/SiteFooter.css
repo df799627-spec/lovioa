@@ -1,7 +1,7 @@
 .site-footer {
   margin-top: 72px;
   border-top: 1px solid var(--color-border);
-  background: linear-gradient(180deg, rgba(247, 244, 239, 0.65), rgba(247, 244, 239, 0.95));
+  background: var(--background);
 }
 
 .site-footer__inner {
@@ -18,10 +18,12 @@
 }
 
 .site-footer__brand {
-  font-family: var(--font-display);
-  font-size: 1.18rem;
-  font-style: italic;
-  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: var(--text-lg);
+  font-style: normal;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-tight);
+  color: var(--foreground);
 }
 
 .site-footer__tagline {

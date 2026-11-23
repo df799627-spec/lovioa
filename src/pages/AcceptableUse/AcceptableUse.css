@@ -17,7 +17,7 @@
 }
 
 .aup__title {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: clamp(1.8rem, 4vw, 2.6rem);
   font-weight: 500;
   letter-spacing: -0.02em;
@@ -41,7 +41,7 @@
 }
 
 .aup__card h2 {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 1.08rem;
   font-weight: 600;
   margin-top: 18px;

@@ -81,6 +81,7 @@ export default function Onboarding() {
   const [role, setRole] = useState('');
   const [useCase, setUseCase] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (hasCompletedOnboarding) {
@@ -112,16 +113,28 @@ export default function Onboarding() {
 
   const handleDone = async () => {
     setLoading(true);
+    setError('');
     trackAction('act_onboarding_complete', { source, role, useCase });
-    completeOnboarding({ source, role, useCase }).catch(() => {});
-    navigate('/', { replace: true });
+    try {
+      await completeOnboarding({ source, role, useCase });
+      navigate('/', { replace: true });
+    } catch (requestError) {
+      setError(requestError?.message || '保存引导信息失败，请稍后重试');
+      setLoading(false);
+    }
   };
 
   const handleSkip = async () => {
     setLoading(true);
+    setError('');
     trackAction('act_onboarding_skip', { source, role, useCase });
-    completeOnboarding({ source: [], role: '', useCase: [] }).catch(() => {});
-    navigate('/', { replace: true });
+    try {
+      await completeOnboarding({ source: [], role: '', useCase: [] });
+      navigate('/', { replace: true });
+    } catch (requestError) {
+      setError(requestError?.message || '保存引导信息失败，请稍后重试');
+      setLoading(false);
+    }
   };
 
   const stepVariants = {
@@ -148,6 +161,7 @@ export default function Onboarding() {
           </div>
           <h1 className="onboarding-card__title">{t('onboarding.title')}</h1>
           <p className="onboarding-card__subtitle">{t('onboarding.subtitle')}</p>
+          {error && <p className="onboarding-card__error" role="alert">{error}</p>}
         </div>
 
         {/* Step indicator */}

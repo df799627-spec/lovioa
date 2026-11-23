@@ -112,6 +112,9 @@ export function inferPromptCategory({ prompt = '', tags = [], fallback = 'Genera
 }
 
 export function normalizePromptCategory({ prompt = '', tags = [], manualCategory = '' } = {}) {
+  // The API/server taxonomy is authoritative for persisted prompts. Client
+  // heuristics must not overwrite a repaired category in detail views.
+  if (String(manualCategory || '').trim() && manualCategory !== 'Generated') return manualCategory;
   const inferred = inferPromptCategory({ prompt, tags, fallback: 'Generated' });
   if (inferred !== 'Generated') return inferred;
   return manualCategory || 'Generated';

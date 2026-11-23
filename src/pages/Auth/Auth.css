@@ -25,7 +25,7 @@
 }
 
 .auth-page__brand {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 1.5rem;
   font-weight: 500;
   color: var(--color-text);
@@ -97,12 +97,12 @@
 }
 
 .auth-page__input--error {
-  border-color: #dc2626 !important;
+  border-color: var(--destructive) !important;
   box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1) !important;
 }
 
 .auth-page__input--valid {
-  border-color: #16a34a !important;
+  border-color: var(--success) !important;
 }
 
 .auth-page__input-check {
@@ -113,7 +113,7 @@
 }
 
 .auth-page__input-check--valid {
-  color: #16a34a;
+  color: var(--success);
 }
 
 .auth-page__field-error {
@@ -121,7 +121,7 @@
   align-items: center;
   gap: 5px;
   font-size: 0.78rem;
-  color: #dc2626;
+  color: var(--destructive);
 }
 
 .auth-page__pw-wrap {
@@ -171,9 +171,9 @@
   transition: background var(--transition-fast);
 }
 
-.auth-page__pw-strength-bar--weak { background: #dc2626; }
-.auth-page__pw-strength-bar--medium { background: #d97706; }
-.auth-page__pw-strength-bar--strong { background: #16a34a; }
+.auth-page__pw-strength-bar--weak { background: var(--destructive); }
+.auth-page__pw-strength-bar--medium { background: color-mix(in oklab, var(--brand) 75%, var(--foreground)); }
+.auth-page__pw-strength-bar--strong { background: var(--success); }
 
 .auth-page__pw-strength-label {
   font-size: 0.75rem;
@@ -182,19 +182,19 @@
   text-align: right;
 }
 
-.auth-page__pw-strength-label--weak { color: #dc2626; }
-.auth-page__pw-strength-label--medium { color: #d97706; }
-.auth-page__pw-strength-label--strong { color: #16a34a; }
+.auth-page__pw-strength-label--weak { color: var(--destructive); }
+.auth-page__pw-strength-label--medium { color: color-mix(in oklab, var(--brand) 75%, var(--foreground)); }
+.auth-page__pw-strength-label--strong { color: var(--success); }
 
 .auth-page__error {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  background: color-mix(in oklab, var(--destructive) 8%, transparent);
+  border: 1px solid color-mix(in oklab, var(--destructive) 25%, transparent);
   border-radius: var(--radius-md);
-  color: #dc2626;
+  color: var(--destructive);
   font-size: 0.85rem;
 }
 
@@ -203,10 +203,10 @@
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
+  background: color-mix(in oklab, var(--success) 12%, transparent);
+  border: 1px solid color-mix(in oklab, var(--success) 30%, transparent);
   border-radius: var(--radius-md);
-  color: #16a34a;
+  color: var(--success);
   font-size: 0.85rem;
 }
 
@@ -214,7 +214,7 @@
   width: 100%;
   padding: var(--space-4);
   background: var(--color-accent);
-  color: white;
+  color: var(--brand-foreground);
   border: none;
   border-radius: var(--radius-md);
   font-size: 0.95rem;
@@ -249,7 +249,7 @@
 .auth-page__dots span {
   width: 6px;
   height: 6px;
-  background: white;
+  background: var(--brand-foreground);
   border-radius: 50%;
   animation: dot-pulse 1.2s ease-in-out infinite;
 }

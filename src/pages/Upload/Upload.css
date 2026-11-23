@@ -10,7 +10,7 @@
 }
 
 .upload__title {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: clamp(2rem, 4vw, 3rem);
   font-weight: 400;
   color: var(--color-text);
@@ -58,12 +58,12 @@
 
 .upload__step.active .upload__step-num {
   background: var(--color-accent);
-  color: white;
+  color: var(--brand-foreground);
 }
 
 .upload__step.done .upload__step-num {
-  background: #4ade80;
-  color: white;
+  background: var(--success);
+  color: var(--success-foreground);
 }
 
 .upload__step-label {
@@ -158,8 +158,8 @@
   left: 50%;
   transform: translateX(-50%);
   padding: var(--space-2) var(--space-5);
-  background: rgba(28, 25, 23, 0.75);
-  color: white;
+  background: color-mix(in oklab, var(--foreground) 75%, transparent);
+  color: var(--background);
   font-size: 0.8rem;
   font-weight: 500;
   border-radius: var(--radius-full);
@@ -168,7 +168,7 @@
 }
 
 .upload__preview-change:hover {
-  background: rgba(28, 25, 23, 0.9);
+  background: color-mix(in oklab, var(--foreground) 90%, transparent);
 }
 
 /* Form */
@@ -199,7 +199,7 @@
 }
 
 .upload__form-label h3 {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 1.5rem;
   font-weight: 400;
   color: var(--color-text);
@@ -300,7 +300,7 @@
   font-size: 0.75rem;
   font-weight: 500;
   border-radius: var(--radius-full);
-  border: 1px solid rgba(181, 98, 42, 0.2);
+  border: 1px solid color-mix(in oklab, var(--brand) 20%, transparent);
 }
 
 /* Style grid */
@@ -331,7 +331,7 @@
 .upload__style-btn.active {
   border-color: var(--color-accent);
   background: var(--color-accent);
-  color: white;
+  color: var(--brand-foreground);
 }
 
 /* Summary */
@@ -417,7 +417,7 @@
   gap: var(--space-2);
   padding: var(--space-3) var(--space-6);
   background: var(--color-accent);
-  color: white;
+  color: var(--brand-foreground);
   font-size: 0.875rem;
   font-weight: 500;
   border-radius: var(--radius-full);
@@ -442,7 +442,7 @@
   gap: var(--space-2);
   padding: var(--space-4) var(--space-8);
   background: var(--color-accent);
-  color: white;
+  color: var(--brand-foreground);
   font-size: 0.9rem;
   font-weight: 500;
   border-radius: var(--radius-full);
@@ -472,7 +472,7 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: white;
+  background: var(--brand-foreground);
   animation: dotBounce 1.2s ease-in-out infinite;
 }
 
@@ -495,8 +495,8 @@
   width: 72px;
   height: 72px;
   border-radius: 50%;
-  background: #4ade80;
-  color: white;
+  background: var(--success);
+  color: var(--success-foreground);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -504,7 +504,7 @@
 }
 
 .upload-success__title {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 2rem;
   font-weight: 400;
   color: var(--color-text);
