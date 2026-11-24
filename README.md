@@ -86,7 +86,7 @@ From the repository root:
 ./connect-production.sh --exec "systemctl status promptfolio.service --no-pager"
 ```
 
-The helper uses `root@207.57.128.137` on port `2217` by default and automatically uses `~/.ssh/lovioa-production` when that key exists. Override the target with `PRODUCTION_HOST`, `PRODUCTION_PORT`, and `PRODUCTION_USER`. It does not store passwords or private keys in the repository.
+The helper uses `root@85.189.88.8` on port `2217` by default and automatically uses `~/.ssh/lovioa-production` when that key exists. Override the target with `PRODUCTION_HOST`, `PRODUCTION_PORT`, and `PRODUCTION_USER`. It does not store passwords or private keys in the repository.
 
 ## Configuration
 
